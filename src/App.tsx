@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ProtectedRoute } from "./lib/auth";
+import { AdminLayout } from "./components/AdminLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import MarketSelection from "./pages/MarketSelection";
@@ -11,6 +12,9 @@ import Punch from "./pages/Punch";
 import Stalls from "./pages/Stalls";
 import MediaUpload from "./pages/MediaUpload";
 import Finalize from "./pages/Finalize";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AllSessions from "./pages/admin/AllSessions";
+import Users from "./pages/admin/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +35,9 @@ const App = () => (
             <Route path="/stalls" element={<ProtectedRoute><Stalls /></ProtectedRoute>} />
             <Route path="/media-upload" element={<ProtectedRoute><MediaUpload /></ProtectedRoute>} />
             <Route path="/finalize" element={<ProtectedRoute><Finalize /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminLayout><AdminDashboard /></AdminLayout></ProtectedRoute>} />
+            <Route path="/admin/sessions" element={<ProtectedRoute><AdminLayout><AllSessions /></AdminLayout></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute><AdminLayout><Users /></AdminLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
