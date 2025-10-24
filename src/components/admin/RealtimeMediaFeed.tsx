@@ -40,6 +40,7 @@ export default function RealtimeMediaFeed() {
 
   const fetchRecentUploads = async () => {
     try {
+      // Use direct filtering with new columns
       const { data, error } = await supabase
         .from('media')
         .select(`
@@ -48,10 +49,10 @@ export default function RealtimeMediaFeed() {
           media_type,
           captured_at,
           is_late,
-          sessions (
-            markets (name),
-            profiles (full_name)
-          )
+          user_id,
+          market_id,
+          profiles!media_user_id_fkey(full_name),
+          markets!media_market_id_fkey(name)
         `)
         .order('captured_at', { ascending: false })
         .limit(20);
@@ -60,8 +61,8 @@ export default function RealtimeMediaFeed() {
 
       const formattedUploads = data?.map((item: any) => ({
         id: item.id,
-        employee_name: item.sessions?.profiles?.full_name || 'Unknown',
-        market_name: item.sessions?.markets?.name || 'Unknown',
+        employee_name: item.profiles?.full_name || 'Unknown',
+        market_name: item.markets?.name || 'Unknown',
         file_type: item.media_type.replace(/_/g, ' ').toUpperCase(),
         uploaded_at: item.captured_at,
         is_late: item.is_late,

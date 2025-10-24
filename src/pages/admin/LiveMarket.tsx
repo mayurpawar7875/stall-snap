@@ -220,21 +220,7 @@ export default function LiveMarket() {
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('market_id', selectedMarket)
-        .eq('session_date', dateStr);
-
-      if (sessionsError) throw sessionsError;
-
-      const sessionIds = sessions?.map(s => s.id) || [];
-      
-      if (sessionIds.length === 0) {
-        setMediaUploads([]);
-        return;
-      }
-
+      // Direct filtering using market_id and market_date with IST timezone
       const { data, error } = await supabase
         .from('media')
         .select(`
@@ -243,10 +229,11 @@ export default function LiveMarket() {
           media_type,
           is_late,
           file_url,
-          session_id,
-          sessions!inner(user_id, profiles!inner(full_name))
+          user_id,
+          profiles!media_user_id_fkey(full_name)
         `)
-        .in('session_id', sessionIds)
+        .eq('market_id', selectedMarket)
+        .eq('market_date', dateStr)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -254,13 +241,14 @@ export default function LiveMarket() {
       setMediaUploads((data || []).map((item: any) => ({
         id: item.id,
         uploaded_at: item.created_at,
-        employee_name: item.sessions.profiles.full_name,
+        employee_name: item.profiles?.full_name || 'Unknown',
         file_type: item.media_type,
         is_late: item.is_late,
         file_url: item.file_url
       })));
     } catch (error) {
       console.error('Error fetching media:', error);
+      setMediaUploads([]);
     }
   };
 
@@ -268,54 +256,40 @@ export default function LiveMarket() {
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       
-      // Active employees
+      // Active + finalized employees for the day
       const { count: activeCount } = await supabase
         .from('sessions')
         .select('*', { count: 'exact', head: true })
         .eq('market_id', selectedMarket)
         .eq('session_date', dateStr)
-        .eq('status', 'active');
+        .in('status', ['active', 'finalized']);
 
-      // Stalls confirmed
+      // Stalls confirmed - direct filtering
       const { count: stallsCount } = await supabase
         .from('stall_confirmations')
         .select('*', { count: 'exact', head: true })
         .eq('market_id', selectedMarket)
         .eq('market_date', dateStr);
 
-      // Get session IDs for this market/date
-      const { data: sessions } = await supabase
-        .from('sessions')
-        .select('id')
+      // Media uploads - direct filtering using new columns
+      const { count: totalMedia } = await supabase
+        .from('media')
+        .select('*', { count: 'exact', head: true })
         .eq('market_id', selectedMarket)
-        .eq('session_date', dateStr);
+        .eq('market_date', dateStr);
 
-      const sessionIds = sessions?.map(s => s.id) || [];
-
-      let mediaCount = 0;
-      let lateCount = 0;
-
-      if (sessionIds.length > 0) {
-        const { count: totalMedia } = await supabase
-          .from('media')
-          .select('*', { count: 'exact', head: true })
-          .in('session_id', sessionIds);
-
-        const { count: lateMedia } = await supabase
-          .from('media')
-          .select('*', { count: 'exact', head: true })
-          .in('session_id', sessionIds)
-          .eq('is_late', true);
-
-        mediaCount = totalMedia || 0;
-        lateCount = lateMedia || 0;
-      }
+      const { count: lateMedia } = await supabase
+        .from('media')
+        .select('*', { count: 'exact', head: true })
+        .eq('market_id', selectedMarket)
+        .eq('market_date', dateStr)
+        .eq('is_late', true);
 
       setKpis({
         active_employees: activeCount || 0,
         stalls_confirmed: stallsCount || 0,
-        media_uploaded: mediaCount,
-        late_uploads: lateCount
+        media_uploaded: totalMedia || 0,
+        late_uploads: lateMedia || 0
       });
     } catch (error) {
       console.error('Error fetching KPIs:', error);
@@ -326,13 +300,14 @@ export default function LiveMarket() {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
     const channel = supabase
-      .channel('live-market-updates')
+      .channel(`live-market-${selectedMarket}-${dateStr}`)
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'sessions',
-        filter: `market_id=eq.${selectedMarket}`
-      }, () => {
+        filter: `market_id=eq.${selectedMarket},session_date=eq.${dateStr}`
+      }, (payload) => {
+        console.log('Session change:', payload);
         fetchEmployeesOnDuty();
         fetchKPIs();
       })
@@ -340,16 +315,19 @@ export default function LiveMarket() {
         event: '*', 
         schema: 'public', 
         table: 'stall_confirmations',
-        filter: `market_id=eq.${selectedMarket}`
-      }, () => {
+        filter: `market_id=eq.${selectedMarket},market_date=eq.${dateStr}`
+      }, (payload) => {
+        console.log('Stall confirmation change:', payload);
         fetchStallConfirmations();
         fetchKPIs();
       })
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'media'
-      }, () => {
+        table: 'media',
+        filter: `market_id=eq.${selectedMarket},market_date=eq.${dateStr}`
+      }, (payload) => {
+        console.log('Media change:', payload);
         fetchMediaUploads();
         fetchKPIs();
       })
@@ -357,7 +335,8 @@ export default function LiveMarket() {
         event: '*', 
         schema: 'public', 
         table: 'task_events'
-      }, () => {
+      }, (payload) => {
+        console.log('Task event change:', payload);
         fetchEmployeesOnDuty();
       })
       .subscribe();

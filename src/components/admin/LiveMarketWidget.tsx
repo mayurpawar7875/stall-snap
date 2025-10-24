@@ -52,60 +52,53 @@ export default function LiveMarketWidget() {
       if (sessionsError) throw sessionsError;
 
       // Group by market
-      const marketMap = new Map<string, { name: string; sessionIds: string[] }>();
+      const marketMap = new Map<string, { name: string }>();
       
       sessions?.forEach((session: any) => {
         if (!marketMap.has(session.market_id)) {
           marketMap.set(session.market_id, {
-            name: session.markets.name,
-            sessionIds: []
+            name: session.markets.name
           });
         }
-        marketMap.get(session.market_id)!.sessionIds.push(session.id);
       });
 
       const summaries = await Promise.all(
         Array.from(marketMap.entries()).map(async ([marketId, data]) => {
-          // Active employees
+          // Active + finalized employees for the day
           const { count: activeCount } = await supabase
             .from('sessions')
             .select('*', { count: 'exact', head: true })
             .eq('market_id', marketId)
             .eq('session_date', today)
-            .eq('status', 'active');
+            .in('status', ['active', 'finalized']);
 
-          // Stalls confirmed
+          // Stalls confirmed - using direct filtering
           const { count: stallsCount } = await supabase
             .from('stall_confirmations')
             .select('*', { count: 'exact', head: true })
             .eq('market_id', marketId)
             .eq('market_date', today);
 
-          let mediaCount = 0;
-          let lateCount = 0;
+          // Media uploads - using direct filtering with new columns
+          const { count: totalMedia } = await supabase
+            .from('media')
+            .select('*', { count: 'exact', head: true })
+            .eq('market_id', marketId)
+            .eq('market_date', today);
 
-          if (data.sessionIds.length > 0) {
-            const { count: totalMedia } = await supabase
-              .from('media')
-              .select('*', { count: 'exact', head: true })
-              .in('session_id', data.sessionIds);
-
-            const { count: lateMedia } = await supabase
-              .from('media')
-              .select('*', { count: 'exact', head: true })
-              .in('session_id', data.sessionIds)
-              .eq('is_late', true);
-
-            mediaCount = totalMedia || 0;
-            lateCount = lateMedia || 0;
-          }
+          const { count: lateMedia } = await supabase
+            .from('media')
+            .select('*', { count: 'exact', head: true })
+            .eq('market_id', marketId)
+            .eq('market_date', today)
+            .eq('is_late', true);
 
           return {
             market_name: data.name,
             active_employees: activeCount || 0,
             stalls_confirmed: stallsCount || 0,
-            media_uploaded: mediaCount,
-            late_uploads: lateCount
+            media_uploaded: totalMedia || 0,
+            late_uploads: lateMedia || 0
           };
         })
       );
