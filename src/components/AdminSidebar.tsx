@@ -41,8 +41,8 @@ export function AdminSidebar() {
               {menuItems.map(item => <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span className="ml-2 text-slate-950">{item.title}</span>}
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      {!collapsed && <span className="ml-2">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>)}
