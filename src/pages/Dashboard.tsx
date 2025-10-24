@@ -36,8 +36,13 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Redirect admins to admin dashboard
+    if (isAdmin) {
+      navigate('/admin');
+      return;
+    }
     fetchTodaySession();
-  }, [user]);
+  }, [user, isAdmin, navigate]);
 
   const fetchTodaySession = async () => {
     if (!user) return;
@@ -111,12 +116,6 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
           <div className="flex gap-2">
-            {isAdmin && (
-              <Button variant="outline" onClick={() => navigate('/admin')}>
-                <Users className="mr-2 h-4 w-4" />
-                Admin Panel
-              </Button>
-            )}
             <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out

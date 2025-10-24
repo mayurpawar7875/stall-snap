@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, FileText, CheckCircle, Clock } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalSessions: 0,
@@ -13,8 +17,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Redirect non-admins to employee dashboard
+    if (!isAdmin) {
+      navigate('/dashboard');
+      return;
+    }
     fetchStats();
-  }, []);
+  }, [isAdmin, navigate]);
 
   const fetchStats = async () => {
     try {
