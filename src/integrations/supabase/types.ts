@@ -77,6 +77,7 @@ export type Database = {
           gps_lat: number | null
           gps_lng: number | null
           id: string
+          is_late: boolean
           media_type: Database["public"]["Enums"]["media_type"]
           session_id: string
         }
@@ -89,6 +90,7 @@ export type Database = {
           gps_lat?: number | null
           gps_lng?: number | null
           id?: string
+          is_late?: boolean
           media_type: Database["public"]["Enums"]["media_type"]
           session_id: string
         }
@@ -101,6 +103,7 @@ export type Database = {
           gps_lat?: number | null
           gps_lng?: number | null
           id?: string
+          is_late?: boolean
           media_type?: Database["public"]["Enums"]["media_type"]
           session_id?: string
         }

@@ -17,6 +17,7 @@ interface MediaFile {
   gps_lat: number | null;
   gps_lng: number | null;
   captured_at: string;
+  is_late: boolean;
 }
 
 export default function MediaUpload() {
@@ -71,12 +72,15 @@ export default function MediaUpload() {
     }
   };
 
-  const isTimeInWindow = (windowStart: string, windowEnd: string) => {
-    // Convert current time to IST (UTC+5:30)
+  const getISTTime = () => {
     const now = new Date();
     const istOffset = 5.5 * 60; // IST is UTC+5:30 in minutes
     const localOffset = now.getTimezoneOffset(); // Local offset from UTC in minutes (negative for ahead of UTC)
-    const istTime = new Date(now.getTime() + (istOffset + localOffset) * 60 * 1000);
+    return new Date(now.getTime() + (istOffset + localOffset) * 60 * 1000);
+  };
+
+  const isTimeInWindow = (windowStart: string, windowEnd: string) => {
+    const istTime = getISTTime();
     
     const hours = istTime.getHours();
     const minutes = istTime.getMinutes();
@@ -90,12 +94,17 @@ export default function MediaUpload() {
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
   };
 
+  const isLateUpload = (windowStart: string, windowEnd: string) => {
+    return !isTimeInWindow(windowStart, windowEnd);
+  };
+
   const canUploadOutsideRates = isTimeInWindow('14:00', '14:15');
   const canUploadSelfie = isTimeInWindow('14:15', '14:20');
 
   const handleFileUpload = async (
     file: File,
     mediaType: 'outside_rates' | 'selfie_gps',
+    isLate: boolean,
     gpsLat?: number,
     gpsLng?: number
   ) => {
@@ -121,11 +130,15 @@ export default function MediaUpload() {
         gps_lat: gpsLat || null,
         gps_lng: gpsLng || null,
         captured_at: new Date().toISOString(),
+        is_late: isLate,
       });
 
       if (insertError) throw insertError;
 
-      toast.success('Media uploaded successfully!');
+      const message = isLate 
+        ? 'Media uploaded successfully (marked as late)' 
+        : 'Media uploaded successfully!';
+      toast.success(message);
       fetchSession();
     } catch (error: any) {
       toast.error('Failed to upload media');
@@ -139,22 +152,15 @@ export default function MediaUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!canUploadOutsideRates) {
-      toast.error('Outside Market Rates can only be uploaded between 2:00 PM - 2:15 PM IST');
-      return;
-    }
-
-    await handleFileUpload(file, 'outside_rates');
+    const isLate = isLateUpload('14:00', '14:15');
+    await handleFileUpload(file, 'outside_rates', isLate);
   };
 
   const handleSelfieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!canUploadSelfie) {
-      toast.error('Selfie + GPS can only be uploaded between 2:15 PM - 2:20 PM IST');
-      return;
-    }
+    const isLate = isLateUpload('14:15', '14:20');
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -162,6 +168,7 @@ export default function MediaUpload() {
           await handleFileUpload(
             file,
             'selfie_gps',
+            isLate,
             position.coords.latitude,
             position.coords.longitude
           );
@@ -228,7 +235,7 @@ export default function MediaUpload() {
                 type="file"
                 accept="image/*,video/*,audio/*"
                 onChange={handleOutsideRatesUpload}
-                disabled={uploading || !canUploadOutsideRates}
+                disabled={uploading}
               />
             </div>
             {outsideRatesMedia.length > 0 && (
@@ -236,10 +243,17 @@ export default function MediaUpload() {
                 <h4 className="font-semibold text-sm">Uploaded Files ({outsideRatesMedia.length})</h4>
                 {outsideRatesMedia.map((file) => (
                   <div key={file.id} className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">{file.file_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(file.captured_at).toLocaleString()}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(file.captured_at).toLocaleString()}
+                        </p>
+                      </div>
+                      {file.is_late && (
+                        <span className="text-xs font-semibold text-destructive">Late Upload</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -273,7 +287,7 @@ export default function MediaUpload() {
                 type="file"
                 accept="image/*"
                 onChange={handleSelfieUpload}
-                disabled={uploading || !canUploadSelfie}
+                disabled={uploading}
               />
               <p className="text-xs text-muted-foreground">
                 <MapPin className="inline h-3 w-3 mr-1" />
@@ -285,16 +299,23 @@ export default function MediaUpload() {
                 <h4 className="font-semibold text-sm">Uploaded Selfies ({selfieMedia.length})</h4>
                 {selfieMedia.map((file) => (
                   <div key={file.id} className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">{file.file_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(file.captured_at).toLocaleString()}
-                    </p>
-                    {file.gps_lat && file.gps_lng && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {file.gps_lat.toFixed(6)}, {file.gps_lng.toFixed(6)}
-                      </p>
-                    )}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(file.captured_at).toLocaleString()}
+                        </p>
+                        {file.gps_lat && file.gps_lng && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {file.gps_lat.toFixed(6)}, {file.gps_lng.toFixed(6)}
+                          </p>
+                        )}
+                      </div>
+                      {file.is_late && (
+                        <span className="text-xs font-semibold text-destructive">Late Upload</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -312,8 +333,7 @@ export default function MediaUpload() {
                   Current Time (IST): {new Date(currentTime.getTime() + (5.5 * 60 + currentTime.getTimezoneOffset()) * 60 * 1000).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Make sure to upload files during the specified time windows. Uploads outside these windows
-                  will be rejected.
+                  You can upload files anytime. Uploads outside the specified time windows will be marked as "Late Upload".
                 </p>
               </div>
             </div>
