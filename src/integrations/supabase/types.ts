@@ -127,8 +127,11 @@ export type Database = {
           gps_lng: number | null
           id: string
           is_late: boolean
+          market_date: string | null
+          market_id: string | null
           media_type: Database["public"]["Enums"]["media_type"]
           session_id: string
+          user_id: string | null
         }
         Insert: {
           allowed_end?: string
@@ -142,8 +145,11 @@ export type Database = {
           gps_lng?: number | null
           id?: string
           is_late?: boolean
+          market_date?: string | null
+          market_id?: string | null
           media_type: Database["public"]["Enums"]["media_type"]
           session_id: string
+          user_id?: string | null
         }
         Update: {
           allowed_end?: string
@@ -157,10 +163,20 @@ export type Database = {
           gps_lng?: number | null
           id?: string
           is_late?: boolean
+          market_date?: string | null
+          market_id?: string | null
           media_type?: Database["public"]["Enums"]["media_type"]
           session_id?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "media_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "media_session_id_fkey"
             columns: ["session_id"]
@@ -438,6 +454,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      backfill_media_metadata: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
