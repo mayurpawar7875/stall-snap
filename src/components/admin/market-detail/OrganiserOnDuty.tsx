@@ -5,11 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
 interface OrganiserData {
-  id: string;
+  id?: string;
   user_id: string;
-  punch_in_time: string | null;
-  punch_out_time: string | null;
-  status: string;
+  punch_in_time?: string | null;
+  punch_out_time?: string | null;
+  status?: string;
   profiles: {
     full_name: string;
     phone: string | null;
@@ -31,7 +31,7 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
     fetchOrganiser();
 
     if (isToday) {
-      const channel = supabase
+      const sessionsChannel = supabase
         .channel(`sessions-${marketId}-${marketDate}`)
         .on(
           'postgres_changes',
@@ -45,8 +45,23 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
         )
         .subscribe();
 
+      const mediaChannel = supabase
+        .channel(`media-organiser-${marketId}-${marketDate}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'media',
+            filter: `market_id=eq.${marketId}`,
+          },
+          () => fetchOrganiser()
+        )
+        .subscribe();
+
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(sessionsChannel);
+        supabase.removeChannel(mediaChannel);
       };
     }
   }, [marketId, marketDate, isToday]);
@@ -64,47 +79,79 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
 
     if (sErr) console.error(sErr);
 
-    const userIds = [...new Set((s ?? []).map(r => r.user_id).filter(Boolean))];
+    let selectedUserId: string | null = null;
+    let sessionData: any = null;
 
-    // Fetch employees
-    const { data: emps, error: eErr } = await supabase
-      .from('profiles')
-      .select('id, full_name, phone')
-      .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000']);
-
-    if (eErr) console.error(eErr);
-
-    const empById: Record<string, any> = Object.fromEntries((emps ?? []).map(e => [e.id, e]));
-
-    // Pick organiser = active session first, else latest completed
+    // Pick organiser = active session first, else latest
     const organiserSession = (s ?? []).sort((a, b) => 
       (a.status === 'active' ? -1 : 1) || 
       (new Date(b.punch_in_time || 0).getTime() - new Date(a.punch_in_time || 0).getTime())
     )[0];
 
     if (organiserSession) {
-      const emp = empById[organiserSession.user_id];
-      setOrganiser({
-        ...organiserSession,
-        profiles: emp ? {
-          full_name: emp.full_name,
-          phone: emp.phone
-        } : { full_name: 'Unknown', phone: null }
-      } as any);
-
-      // Fetch last activity
-      const { data: mediaData } = await supabase
+      selectedUserId = organiserSession.user_id;
+      sessionData = organiserSession;
+    } else {
+      // Fallback: find employee with most uploads for this market/date
+      const { data: uploads } = await supabase
         .from('media')
-        .select('captured_at')
-        .eq('user_id', organiserSession.user_id)
+        .select('user_id')
         .eq('market_id', marketId)
-        .eq('market_date', marketDate)
-        .order('captured_at', { ascending: false })
-        .limit(1)
+        .eq('market_date', marketDate);
+
+      if (uploads && uploads.length > 0) {
+        // Count uploads per user
+        const uploadCounts: Record<string, number> = {};
+        uploads.forEach(u => {
+          if (u.user_id) {
+            uploadCounts[u.user_id] = (uploadCounts[u.user_id] || 0) + 1;
+          }
+        });
+
+        // Find user with most uploads
+        const mostActiveUser = Object.entries(uploadCounts)
+          .sort(([, a], [, b]) => b - a)[0];
+        
+        if (mostActiveUser) {
+          selectedUserId = mostActiveUser[0];
+        }
+      }
+    }
+
+    if (selectedUserId) {
+      // Fetch the employee profile
+      const { data: emp } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .eq('id', selectedUserId)
         .maybeSingle();
 
-      if (mediaData) {
-        setLastActivity(mediaData.captured_at);
+      if (emp) {
+        setOrganiser({
+          ...sessionData,
+          user_id: selectedUserId,
+          profiles: {
+            full_name: emp.full_name,
+            phone: emp.phone
+          }
+        } as any);
+
+        // Fetch last activity
+        const { data: mediaData } = await supabase
+          .from('media')
+          .select('captured_at')
+          .eq('user_id', selectedUserId)
+          .eq('market_id', marketId)
+          .eq('market_date', marketDate)
+          .order('captured_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (mediaData) {
+          setLastActivity(mediaData.captured_at);
+        }
+      } else {
+        setOrganiser(null);
       }
     } else {
       setOrganiser(null);
@@ -161,7 +208,7 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
               <div className="text-lg">
                 {organiser.punch_in_time
                   ? format(new Date(organiser.punch_in_time), 'hh:mm a')
-                  : 'Not punched in'}
+                  : '—'}
               </div>
             </div>
 
@@ -170,7 +217,7 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
               <div className="text-lg">
                 {organiser.punch_out_time
                   ? format(new Date(organiser.punch_out_time), 'hh:mm a')
-                  : 'Not punched out'}
+                  : '—'}
               </div>
             </div>
 
@@ -184,11 +231,13 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
             </div>
           </div>
 
-          <div>
-            <Badge variant={organiser.status === 'active' ? 'default' : 'secondary'}>
-              {organiser.status}
-            </Badge>
-          </div>
+          {organiser.status && (
+            <div>
+              <Badge variant={organiser.status === 'active' ? 'default' : 'secondary'}>
+                {organiser.status}
+              </Badge>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

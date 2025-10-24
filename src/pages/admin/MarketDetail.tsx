@@ -74,17 +74,7 @@ export default function MarketDetail() {
 
       if (sErr) console.error(sErr);
 
-      const userIds = [...new Set((s ?? []).map(r => r.user_id).filter(Boolean))];
-
-      // Fetch employees
-      const { data: emps, error: eErr } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000']);
-
-      if (eErr) console.error(eErr);
-
-      const empById: Record<string, any> = Object.fromEntries((emps ?? []).map(e => [e.id, e]));
+      let selectedUserId: string | null = null;
 
       // Pick organiser = active session first, else latest
       const organiserSession = (s ?? []).sort((a, b) => 
@@ -92,13 +82,52 @@ export default function MarketDetail() {
         (new Date(b.punch_in_time || 0).getTime() - new Date(a.punch_in_time || 0).getTime())
       )[0];
 
-      if (organiserSession && empById[organiserSession.user_id]) {
-        const emp = empById[organiserSession.user_id];
-        setOrganiser({
-          full_name: emp.full_name,
-          phone: emp.phone,
-          email: null
-        });
+      if (organiserSession) {
+        selectedUserId = organiserSession.user_id;
+      } else {
+        // Fallback: find employee with most uploads for this market/date
+        const { data: uploads } = await supabase
+          .from('media')
+          .select('user_id')
+          .eq('market_id', marketId)
+          .eq('market_date', dateStr);
+
+        if (uploads && uploads.length > 0) {
+          // Count uploads per user
+          const uploadCounts: Record<string, number> = {};
+          uploads.forEach(u => {
+            if (u.user_id) {
+              uploadCounts[u.user_id] = (uploadCounts[u.user_id] || 0) + 1;
+            }
+          });
+
+          // Find user with most uploads
+          const mostActiveUser = Object.entries(uploadCounts)
+            .sort(([, a], [, b]) => b - a)[0];
+          
+          if (mostActiveUser) {
+            selectedUserId = mostActiveUser[0];
+          }
+        }
+      }
+
+      if (selectedUserId) {
+        // Fetch the employee profile
+        const { data: emp } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .eq('id', selectedUserId)
+          .maybeSingle();
+
+        if (emp) {
+          setOrganiser({
+            full_name: emp.full_name,
+            phone: emp.phone,
+            email: null
+          });
+        } else {
+          setOrganiser(null);
+        }
       } else {
         setOrganiser(null);
       }
@@ -152,7 +181,7 @@ export default function MarketDetail() {
             <div className="flex flex-wrap gap-4">
               <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium mb-2 block">Market</label>
-                <Select value={marketId} onValueChange={(val) => navigate(`/admin/markets/${val}`)}>
+                <Select value={marketId} onValueChange={(val) => navigate(`/admin/market/${val}`)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
