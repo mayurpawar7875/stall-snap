@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ interface Session {
 }
 
 export default function AllSessions() {
+  const location = useLocation();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,17 @@ export default function AllSessions() {
   useEffect(() => {
     fetchMarkets();
     fetchSessions();
-  }, []);
+    
+    // Apply filters based on navigation state
+    const state = location.state as any;
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (state?.filterToday) {
+      setFilters(prev => ({ ...prev, dateFrom: today, dateTo: today }));
+    } else if (state?.filterCompleted) {
+      setFilters(prev => ({ ...prev, dateFrom: today, dateTo: today, status: 'completed' }));
+    }
+  }, [location.state]);
 
   useEffect(() => {
     applyFilters();

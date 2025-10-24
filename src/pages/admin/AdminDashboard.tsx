@@ -74,24 +74,28 @@ export default function AdminDashboard() {
       value: stats.totalUsers,
       icon: Users,
       description: 'Total active users',
+      onClick: () => navigate('/admin/users'),
     },
     {
       title: 'Total Sessions',
       value: stats.totalSessions,
       icon: FileText,
       description: 'All-time sessions',
+      onClick: () => navigate('/admin/all-sessions'),
     },
     {
       title: "Today's Sessions",
       value: stats.todaySessions,
       icon: Clock,
       description: 'Active today',
+      onClick: () => navigate('/admin/all-sessions', { state: { filterToday: true } }),
     },
     {
       title: 'Completed Today',
       value: stats.finalizedToday,
       icon: CheckCircle,
       description: 'Sessions finalized',
+      onClick: () => navigate('/admin/all-sessions', { state: { filterCompleted: true } }),
     },
   ];
 
@@ -112,7 +116,11 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <Card key={stat.title}>
+          <Card 
+            key={stat.title} 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={stat.onClick}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-muted-foreground" />
