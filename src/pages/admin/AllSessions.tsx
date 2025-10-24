@@ -48,13 +48,15 @@ export default function AllSessions() {
   useEffect(() => {
     fetchMarkets();
     fetchSessions();
-    
+  }, []);
+
+  useEffect(() => {
     // Apply filters based on navigation state
     const state = location.state as any;
     const today = new Date().toISOString().split('T')[0];
     
     if (state?.filterToday) {
-      setFilters(prev => ({ ...prev, dateFrom: today, dateTo: today }));
+      setFilters(prev => ({ ...prev, dateFrom: today, dateTo: today, status: '' }));
     } else if (state?.filterCompleted) {
       setFilters(prev => ({ ...prev, dateFrom: today, dateTo: today, status: 'completed' }));
     }
