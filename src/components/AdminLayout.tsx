@@ -5,22 +5,22 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from './AdminSidebar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LogOut } from 'lucide-react';
-
 interface AdminLayoutProps {
   children: ReactNode;
 }
-
-export function AdminLayout({ children }: AdminLayoutProps) {
-  const { signOut, user } = useAuth();
+export function AdminLayout({
+  children
+}: AdminLayoutProps) {
+  const {
+    signOut,
+    user
+  } = useAuth();
   const navigate = useNavigate();
-
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
   };
-
-  return (
-    <SidebarProvider>
+  return <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <div className="flex-1 flex flex-col">
@@ -31,10 +31,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Employee View
-              </Button>
+              
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
@@ -44,6 +41,5 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <main className="flex-1 p-6 overflow-auto">{children}</main>
         </div>
       </div>
-    </SidebarProvider>
-  );
+    </SidebarProvider>;
 }
