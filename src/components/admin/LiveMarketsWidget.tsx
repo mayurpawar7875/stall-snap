@@ -124,7 +124,7 @@ export default function LiveMarketsWidget() {
               <div
                 key={market.id}
                 className="flex items-start justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/admin/markets/${market.id}`)}
+                onClick={() => navigate(`/admin/market/${market.id}`)}
               >
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">

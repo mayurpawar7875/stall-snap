@@ -47,6 +47,13 @@ export type Database = {
             foreignKeyName: "collections_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
+            referencedRelation: "live_markets_today"
+            referencedColumns: ["market_id"]
+          },
+          {
+            foreignKeyName: "collections_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
             referencedRelation: "markets"
             referencedColumns: ["id"]
           },
@@ -174,6 +181,13 @@ export type Database = {
             foreignKeyName: "media_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
+            referencedRelation: "live_markets_today"
+            referencedColumns: ["market_id"]
+          },
+          {
+            foreignKeyName: "media_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
             referencedRelation: "markets"
             referencedColumns: ["id"]
           },
@@ -258,6 +272,13 @@ export type Database = {
             foreignKeyName: "sessions_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
+            referencedRelation: "live_markets_today"
+            referencedColumns: ["market_id"]
+          },
+          {
+            foreignKeyName: "sessions_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
             referencedRelation: "markets"
             referencedColumns: ["id"]
           },
@@ -295,6 +316,13 @@ export type Database = {
           stall_no?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "stall_confirmations_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "live_markets_today"
+            referencedColumns: ["market_id"]
+          },
           {
             foreignKeyName: "stall_confirmations_market_id_fkey"
             columns: ["market_id"]
@@ -451,7 +479,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      live_markets_today: {
+        Row: {
+          active_employees: number | null
+          active_sessions: number | null
+          city: string | null
+          last_punch_in: string | null
+          last_upload_time: string | null
+          market_id: string | null
+          market_name: string | null
+          media_uploads_count: number | null
+          stall_confirmations_count: number | null
+          today_ist: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       backfill_media_metadata: { Args: never; Returns: undefined }

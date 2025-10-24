@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AllSessions from "./pages/admin/AllSessions";
 import Users from "./pages/admin/Users";
 import LiveMarket from "./pages/admin/LiveMarket";
+import LiveMarkets from "./pages/admin/LiveMarkets";
 import MarketDetail from "./pages/admin/MarketDetail";
 import NotFound from "./pages/NotFound";
 
@@ -40,9 +41,10 @@ const App = () => (
             <Route path="/finalize" element={<ProtectedRoute><Finalize /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminLayout><AdminDashboard /></AdminLayout></ProtectedRoute>} />
             <Route path="/admin/live-market" element={<ProtectedRoute><AdminLayout><LiveMarket /></AdminLayout></ProtectedRoute>} />
+            <Route path="/admin/live-markets" element={<ProtectedRoute><AdminLayout><LiveMarkets /></AdminLayout></ProtectedRoute>} />
             <Route path="/admin/sessions" element={<ProtectedRoute><AdminLayout><AllSessions /></AdminLayout></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><AdminLayout><Users /></AdminLayout></ProtectedRoute>} />
-            <Route path="/admin/markets/:marketId" element={<ProtectedRoute><MarketDetail /></ProtectedRoute>} />
+            <Route path="/admin/market/:marketId" element={<ProtectedRoute><MarketDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

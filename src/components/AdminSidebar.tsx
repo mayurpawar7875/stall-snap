@@ -10,6 +10,10 @@ const menuItems = [{
   url: '/admin/live-market',
   icon: MonitorPlay
 }, {
+  title: 'Live Markets',
+  url: '/admin/live-markets',
+  icon: MonitorPlay
+}, {
   title: 'All Sessions',
   url: '/admin/sessions',
   icon: FileText
