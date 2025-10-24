@@ -11,13 +11,19 @@ import { ArrowLeft, Upload, Camera, MapPin, AlertCircle, CheckCircle } from 'luc
 
 interface MediaFile {
   id: string;
-  media_type: 'outside_rates' | 'selfie_gps';
+  media_type: 'outside_rates' | 'selfie_gps' | 'rate_board' | 'market_video' | 'cleaning_video';
   file_url: string;
   file_name: string;
   gps_lat: number | null;
   gps_lng: number | null;
   captured_at: string;
   is_late: boolean;
+}
+
+interface TimeWindow {
+  start: string;
+  end: string;
+  label: string;
 }
 
 export default function MediaUpload() {
@@ -98,12 +104,23 @@ export default function MediaUpload() {
     return !isTimeInWindow(windowStart, windowEnd);
   };
 
+  const timeWindows: Record<MediaFile['media_type'], TimeWindow> = {
+    outside_rates: { start: '14:00', end: '14:15', label: '2:00 PM - 2:15 PM IST' },
+    selfie_gps: { start: '14:15', end: '14:20', label: '2:15 PM - 2:20 PM IST' },
+    rate_board: { start: '15:45', end: '16:00', label: '3:45 PM - 4:00 PM IST' },
+    market_video: { start: '16:00', end: '16:15', label: '4:00 PM - 4:15 PM IST' },
+    cleaning_video: { start: '21:15', end: '21:30', label: '9:15 PM - 9:30 PM IST' },
+  };
+
   const canUploadOutsideRates = isTimeInWindow('14:00', '14:15');
   const canUploadSelfie = isTimeInWindow('14:15', '14:20');
+  const canUploadRateBoard = isTimeInWindow('15:45', '16:00');
+  const canUploadMarketVideo = isTimeInWindow('16:00', '16:15');
+  const canUploadCleaningVideo = isTimeInWindow('21:15', '21:30');
 
   const handleFileUpload = async (
     file: File,
-    mediaType: 'outside_rates' | 'selfie_gps',
+    mediaType: MediaFile['media_type'],
     isLate: boolean,
     gpsLat?: number,
     gpsLng?: number
@@ -183,8 +200,32 @@ export default function MediaUpload() {
     }
   };
 
+  const handleRateBoardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isLate = isLateUpload('15:45', '16:00');
+    await handleFileUpload(file, 'rate_board', isLate);
+  };
+
+  const handleMarketVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isLate = isLateUpload('16:00', '16:15');
+    await handleFileUpload(file, 'market_video', isLate);
+  };
+
+  const handleCleaningVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isLate = isLateUpload('21:15', '21:30');
+    await handleFileUpload(file, 'cleaning_video', isLate);
+  };
+
   const outsideRatesMedia = media.filter((m) => m.media_type === 'outside_rates');
   const selfieMedia = media.filter((m) => m.media_type === 'selfie_gps');
+  const rateBoardMedia = media.filter((m) => m.media_type === 'rate_board');
+  const marketVideoMedia = media.filter((m) => m.media_type === 'market_video');
+  const cleaningVideoMedia = media.filter((m) => m.media_type === 'cleaning_video');
 
   if (loading) {
     return (
@@ -247,7 +288,7 @@ export default function MediaUpload() {
                       <div className="flex-1">
                         <p className="text-sm font-medium">{file.file_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(file.captured_at).toLocaleString()}
+                          Uploaded at {new Date(file.captured_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
                         </p>
                       </div>
                       {file.is_late && (
@@ -303,7 +344,7 @@ export default function MediaUpload() {
                       <div className="flex-1">
                         <p className="text-sm font-medium">{file.file_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(file.captured_at).toLocaleString()}
+                          Uploaded at {new Date(file.captured_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
                         </p>
                         {file.gps_lat && file.gps_lng && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -311,6 +352,162 @@ export default function MediaUpload() {
                             {file.gps_lat.toFixed(6)}, {file.gps_lng.toFixed(6)}
                           </p>
                         )}
+                      </div>
+                      {file.is_late && (
+                        <span className="text-xs font-semibold text-destructive">Late Upload</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Big Rate Board Photo */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg">
+                <Upload className="h-6 w-6 text-accent" />
+              </div>
+              <div className="flex-1">
+                <CardTitle>Big Rate Board Photo</CardTitle>
+                <CardDescription>Upload allowed between 3:45 PM - 4:00 PM IST</CardDescription>
+              </div>
+              {canUploadRateBoard ? (
+                <CheckCircle className="h-6 w-6 text-success" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-warning" />
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rate-board">Upload Photo</Label>
+              <Input
+                id="rate-board"
+                type="file"
+                accept="image/*"
+                onChange={handleRateBoardUpload}
+                disabled={uploading}
+              />
+            </div>
+            {rateBoardMedia.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Uploaded Photos ({rateBoardMedia.length})</h4>
+                {rateBoardMedia.map((file) => (
+                  <div key={file.id} className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded at {new Date(file.captured_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                        </p>
+                      </div>
+                      {file.is_late && (
+                        <span className="text-xs font-semibold text-destructive">Late Upload</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Market Video */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg">
+                <Upload className="h-6 w-6 text-accent" />
+              </div>
+              <div className="flex-1">
+                <CardTitle>Market Video</CardTitle>
+                <CardDescription>Upload allowed between 4:00 PM - 4:15 PM IST</CardDescription>
+              </div>
+              {canUploadMarketVideo ? (
+                <CheckCircle className="h-6 w-6 text-success" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-warning" />
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="market-video">Upload Video</Label>
+              <Input
+                id="market-video"
+                type="file"
+                accept="video/*"
+                onChange={handleMarketVideoUpload}
+                disabled={uploading}
+              />
+            </div>
+            {marketVideoMedia.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Uploaded Videos ({marketVideoMedia.length})</h4>
+                {marketVideoMedia.map((file) => (
+                  <div key={file.id} className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded at {new Date(file.captured_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                        </p>
+                      </div>
+                      {file.is_late && (
+                        <span className="text-xs font-semibold text-destructive">Late Upload</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Market Space Cleaning Video */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg">
+                <Upload className="h-6 w-6 text-accent" />
+              </div>
+              <div className="flex-1">
+                <CardTitle>Market Space Cleaning Video</CardTitle>
+                <CardDescription>Upload allowed between 9:15 PM - 9:30 PM IST</CardDescription>
+              </div>
+              {canUploadCleaningVideo ? (
+                <CheckCircle className="h-6 w-6 text-success" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-warning" />
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cleaning-video">Upload Video</Label>
+              <Input
+                id="cleaning-video"
+                type="file"
+                accept="video/*"
+                onChange={handleCleaningVideoUpload}
+                disabled={uploading}
+              />
+            </div>
+            {cleaningVideoMedia.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Uploaded Videos ({cleaningVideoMedia.length})</h4>
+                {cleaningVideoMedia.map((file) => (
+                  <div key={file.id} className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded at {new Date(file.captured_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                        </p>
                       </div>
                       {file.is_late && (
                         <span className="text-xs font-semibold text-destructive">Late Upload</span>

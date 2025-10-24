@@ -261,7 +261,12 @@ export type Database = {
       }
     }
     Enums: {
-      media_type: "outside_rates" | "selfie_gps"
+      media_type:
+        | "outside_rates"
+        | "selfie_gps"
+        | "rate_board"
+        | "market_video"
+        | "cleaning_video"
       session_status: "active" | "finalized" | "locked"
       user_role: "employee" | "admin"
     }
@@ -391,7 +396,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      media_type: ["outside_rates", "selfie_gps"],
+      media_type: [
+        "outside_rates",
+        "selfie_gps",
+        "rate_board",
+        "market_video",
+        "cleaning_video",
+      ],
       session_status: ["active", "finalized", "locked"],
       user_role: ["employee", "admin"],
     },
