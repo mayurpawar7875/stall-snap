@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   LogOut,
@@ -21,9 +22,11 @@ import {
 interface Session {
   id: string;
   session_date: string;
+  market_date: string | null;
   punch_in_time: string | null;
   punch_out_time: string | null;
   status: 'active' | 'completed' | 'finalized' | 'locked';
+  market_id: string;
   market: { name: string; location: string };
   stalls: any[];
   media: any[];
@@ -44,6 +47,8 @@ export default function Dashboard() {
   const [todaySession, setTodaySession] = useState<Session | null>(null);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewDialog, setViewDialog] = useState<'stalls' | 'media' | 'late' | null>(null);
+  const [dialogData, setDialogData] = useState<any[]>([]);
 
   useEffect(() => {
     // Redirect admins to admin dashboard
@@ -94,6 +99,44 @@ export default function Dashboard() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleViewDetails = async (type: 'stalls' | 'media' | 'late') => {
+    if (!todaySession) return;
+    
+    try {
+      if (type === 'stalls') {
+        const { data, error } = await supabase
+          .from('stall_confirmations')
+          .select('*')
+          .eq('market_id', todaySession.market_id)
+          .eq('market_date', todaySession.market_date || todaySession.session_date)
+          .eq('created_by', user?.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setDialogData(data || []);
+      } else if (type === 'media' || type === 'late') {
+        const query = supabase
+          .from('media')
+          .select('*')
+          .eq('session_id', todaySession.id)
+          .order('captured_at', { ascending: false });
+        
+        if (type === 'late') {
+          query.eq('is_late', true);
+        }
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        setDialogData(data || []);
+      }
+      
+      setViewDialog(type);
+    } catch (error) {
+      console.error('Error fetching details:', error);
+      toast.error('Failed to load details');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -261,15 +304,24 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-muted rounded-lg">
+                    <div 
+                      className="p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+                      onClick={() => handleViewDetails('stalls')}
+                    >
                       <p className="text-sm text-muted-foreground">Stalls Confirmed</p>
                       <p className="text-2xl font-bold">{sessionSummary.stalls_count}</p>
                     </div>
-                    <div className="p-4 bg-muted rounded-lg">
+                    <div 
+                      className="p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+                      onClick={() => handleViewDetails('media')}
+                    >
                       <p className="text-sm text-muted-foreground">Media Uploaded</p>
                       <p className="text-2xl font-bold">{sessionSummary.media_count}</p>
                     </div>
-                    <div className="p-4 bg-muted rounded-lg">
+                    <div 
+                      className="p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+                      onClick={() => handleViewDetails('late')}
+                    >
                       <p className="text-sm text-muted-foreground">Late Uploads</p>
                       <p className="text-2xl font-bold text-warning">{sessionSummary.late_uploads_count}</p>
                     </div>
@@ -314,6 +366,97 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* View Details Dialog */}
+      <Dialog open={viewDialog !== null} onOpenChange={() => setViewDialog(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {viewDialog === 'stalls' && 'Stall Confirmations'}
+              {viewDialog === 'media' && 'Media Uploads'}
+              {viewDialog === 'late' && 'Late Uploads'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {viewDialog === 'stalls' && (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="text-left p-3 text-sm font-semibold">Stall No</th>
+                      <th className="text-left p-3 text-sm font-semibold">Stall Name</th>
+                      <th className="text-left p-3 text-sm font-semibold">Farmer Name</th>
+                      <th className="text-left p-3 text-sm font-semibold">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dialogData.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center p-6 text-muted-foreground">
+                          No stall confirmations found
+                        </td>
+                      </tr>
+                    ) : (
+                      dialogData.map((stall: any) => (
+                        <tr key={stall.id} className="border-t">
+                          <td className="p-3">{stall.stall_no}</td>
+                          <td className="p-3">{stall.stall_name}</td>
+                          <td className="p-3">{stall.farmer_name}</td>
+                          <td className="p-3 text-sm text-muted-foreground">
+                            {new Date(stall.created_at).toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {(viewDialog === 'media' || viewDialog === 'late') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dialogData.length === 0 ? (
+                  <div className="col-span-full text-center p-6 text-muted-foreground">
+                    No media uploads found
+                  </div>
+                ) : (
+                  dialogData.map((media: any) => (
+                    <Card key={media.id}>
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          {media.media_type === 'image' ? (
+                            <img 
+                              src={media.file_url} 
+                              alt={media.file_name}
+                              className="w-full h-40 object-cover rounded"
+                            />
+                          ) : (
+                            <video 
+                              src={media.file_url}
+                              className="w-full h-40 object-cover rounded"
+                              controls
+                            />
+                          )}
+                          <div className="text-sm">
+                            <p className="font-medium truncate">{media.file_name}</p>
+                            <p className="text-muted-foreground">
+                              {new Date(media.captured_at).toLocaleString('en-IN')}
+                            </p>
+                            {media.is_late && (
+                              <Badge className="mt-1 bg-warning text-warning-foreground">Late Upload</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
