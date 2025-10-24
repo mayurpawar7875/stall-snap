@@ -67,25 +67,31 @@ export default function MarketDetail() {
       // Prioritize active session, then latest completed session
       const { data } = await supabase
         .from('sessions')
-        .select(`
-          profiles!sessions_user_id_fkey (
-            full_name,
-            phone
-          )
-        `)
+        .select('user_id')
         .eq('market_id', marketId)
         .eq('market_date', dateStr)
         .order('status', { ascending: false }) // 'active' comes before 'completed'
         .order('punch_in_time', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (data?.profiles) {
-        setOrganiser({
-          full_name: data.profiles.full_name,
-          phone: data.profiles.phone,
-          email: null // Add email to profiles query if needed
-        });
+      if (data) {
+        // Fetch the profile separately
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('id', data.user_id)
+          .single();
+        
+        if (profileData) {
+          setOrganiser({
+            full_name: profileData.full_name,
+            phone: profileData.phone,
+            email: null
+          });
+        } else {
+          setOrganiser(null);
+        }
       } else {
         setOrganiser(null);
       }
