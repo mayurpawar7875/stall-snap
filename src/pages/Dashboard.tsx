@@ -210,8 +210,8 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Action Cards - Hide if completed */}
-            {todaySession.status === 'active' && (
+            {/* Action Cards - Show until punch out */}
+            {!todaySession.punch_out_time && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/punch')}>
                   <CardHeader>
