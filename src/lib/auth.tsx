@@ -64,13 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Check if employee status is active
     if (data.user) {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+      const { data: employee, error: employeeError } = await supabase
+        .from('employees')
         .select('status')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
       
-      if (profileError || profile?.status !== 'active') {
+      if (employeeError || !employee || employee.status !== 'active') {
         await supabase.auth.signOut();
         return { error: { message: 'Account is inactive. Please contact administrator.' } };
       }

@@ -39,13 +39,13 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+      const { data: employees, error: employeesError } = await supabase
+        .from('employees')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
-      if (!profiles) {
+      if (employeesError) throw employeesError;
+      if (!employees) {
         setUsers([]);
         return;
       }
@@ -56,14 +56,10 @@ export default function Users() {
 
       if (rolesError) throw rolesError;
 
-      const authData = await supabase.auth.admin.listUsers().catch(() => ({ data: { users: [] } }));
-
-      const usersWithRoles = profiles.map((profile: any) => {
-        const userRoles = roles?.filter((r: any) => r.user_id === profile.id).map((r: any) => r.role) || [];
-        const authUser = authData?.data?.users?.find((u: any) => u.id === profile.id);
+      const usersWithRoles = employees.map((employee: any) => {
+        const userRoles = roles?.filter((r: any) => r.user_id === employee.id).map((r: any) => r.role) || [];
         return {
-          ...profile,
-          email: authUser?.email || 'N/A',
+          ...employee,
           roles: userRoles,
         };
       });
@@ -111,7 +107,7 @@ export default function Users() {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
       
       const { error } = await supabase
-        .from('profiles')
+        .from('employees')
         .update({ status: newStatus })
         .eq('id', userId);
 
@@ -149,7 +145,7 @@ export default function Users() {
 
       if (data.user) {
         await supabase
-          .from('profiles')
+          .from('employees')
           .update({ 
             phone: formData.phone || null,
             status: formData.status,
