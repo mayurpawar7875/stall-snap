@@ -72,9 +72,14 @@ export default function MediaUpload() {
   };
 
   const isTimeInWindow = (windowStart: string, windowEnd: string) => {
+    // Convert current time to IST (UTC+5:30)
     const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    const istOffset = 5.5 * 60; // IST is UTC+5:30 in minutes
+    const localOffset = now.getTimezoneOffset(); // Local offset from UTC in minutes (negative for ahead of UTC)
+    const istTime = new Date(now.getTime() + (istOffset + localOffset) * 60 * 1000);
+    
+    const hours = istTime.getHours();
+    const minutes = istTime.getMinutes();
     const currentMinutes = hours * 60 + minutes;
 
     const [startH, startM] = windowStart.split(':').map(Number);
@@ -303,7 +308,9 @@ export default function MediaUpload() {
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-info mt-0.5" />
               <div className="flex-1 space-y-1">
-                <p className="font-semibold text-info">Current Time: {currentTime.toLocaleTimeString()}</p>
+                <p className="font-semibold text-info">
+                  Current Time (IST): {new Date(currentTime.getTime() + (5.5 * 60 + currentTime.getTimezoneOffset()) * 60 * 1000).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   Make sure to upload files during the specified time windows. Uploads outside these windows
                   will be rejected.
