@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface LiveMarket {
   id: string;
@@ -13,6 +14,7 @@ interface LiveMarket {
 }
 
 export default function LiveMarketsWidget() {
+  const navigate = useNavigate();
   const [markets, setMarkets] = useState<LiveMarket[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -119,7 +121,11 @@ export default function LiveMarketsWidget() {
             </div>
           ) : (
             markets.map((market) => (
-              <div key={market.id} className="flex items-start justify-between p-3 border rounded-lg">
+              <div
+                key={market.id}
+                className="flex items-start justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                onClick={() => navigate(`/admin/markets/${market.id}`)}
+              >
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold">{market.name}</h4>
