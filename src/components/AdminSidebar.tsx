@@ -20,23 +20,26 @@ const menuItems = [
 ];
 
 export function AdminSidebar() {
+  // Force visible text for both states
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     [
       "flex w-full items-center gap-2 rounded-md px-2 py-2 transition",
-      isActive ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50",
+      "text-foreground", // <-- make label always visible
+      isActive ? "bg-accent text-accent-foreground font-medium" : "hover:bg-accent/50 hover:text-foreground",
     ].join(" ");
 
   return (
-    // Fixed width, NO collapsible behavior -> labels always visible
     <Sidebar className="w-64">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
+          {/* ensure group label is also visible */}
+          <SidebarGroupLabel className="text-foreground">Admin Panel</SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
+                  {/* Keep button wrapper but control text color on the NavLink */}
                   <SidebarMenuButton asChild className="flex items-center gap-2">
                     <NavLink to={item.url} end className={linkClass}>
                       <item.icon className="h-4 w-4 flex-shrink-0 text-foreground" />
