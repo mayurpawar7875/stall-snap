@@ -100,8 +100,9 @@ export default function AllSessions() {
       // Get unique user and market IDs
       const userIds = [...new Set(sessions.map((s: any) => s.user_id).filter(Boolean))];
       const marketIds = [...new Set(sessions.map((s: any) => s.market_id).filter(Boolean))];
+      const sessionIds = sessions.map((s: any) => s.id);
 
-      // Fetch employees, markets, stall confirmations, and media in parallel
+      // Fetch employees, markets, stalls, and media in parallel
       const [
         { data: employees },
         { data: markets },
@@ -110,30 +111,38 @@ export default function AllSessions() {
       ] = await Promise.all([
         supabase.from('employees').select('id, full_name, phone').in('id', userIds),
         supabase.from('markets').select('id, name, location').in('id', marketIds),
-        supabase.from('stall_confirmations').select('*'),
-        supabase.from('media').select('*')
+        supabase.from('stalls').select('*').in('session_id', sessionIds),
+        supabase.from('media').select('*').in('session_id', sessionIds)
       ]);
 
       const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e]));
       const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m]));
+
+      // Group stalls and media by session_id
+      const stallsBySession: Record<string, any[]> = {};
+      const mediaBySession: Record<string, any[]> = {};
+
+      (stallsData || []).forEach((stall: any) => {
+        if (!stallsBySession[stall.session_id]) {
+          stallsBySession[stall.session_id] = [];
+        }
+        stallsBySession[stall.session_id].push(stall);
+      });
+
+      (mediaData || []).forEach((media: any) => {
+        if (!mediaBySession[media.session_id]) {
+          mediaBySession[media.session_id] = [];
+        }
+        mediaBySession[media.session_id].push(media);
+      });
 
       // Match stalls and media to sessions
       const sessionsWithData = sessions.map((session: any) => ({
         ...session,
         employees: empById[session.user_id] || null,
         markets: mktById[session.market_id] || null,
-        stalls: (stallsData || []).filter(
-          (stall: any) =>
-            stall.created_by === session.user_id &&
-            stall.market_id === session.market_id &&
-            stall.market_date === (session.market_date || session.session_date)
-        ),
-        media: (mediaData || []).filter(
-          (media: any) =>
-            media.user_id === session.user_id &&
-            media.market_id === session.market_id &&
-            media.market_date === (session.market_date || session.session_date)
-        )
+        stalls: stallsBySession[session.id] || [],
+        media: mediaBySession[session.id] || []
       }));
 
       setSessions(sessionsWithData as any);
