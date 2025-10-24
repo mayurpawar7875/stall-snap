@@ -81,21 +81,21 @@ export default function AdminDashboard() {
       value: stats.totalSessions,
       icon: FileText,
       description: 'All-time sessions',
-      onClick: () => navigate('/admin/all-sessions'),
+      onClick: () => navigate('/admin/sessions'),
     },
     {
       title: "Today's Sessions",
       value: stats.todaySessions,
       icon: Clock,
       description: 'Active today',
-      onClick: () => navigate('/admin/all-sessions', { state: { filterToday: true } }),
+      onClick: () => navigate('/admin/sessions', { state: { filterToday: true } }),
     },
     {
       title: 'Completed Today',
       value: stats.finalizedToday,
       icon: CheckCircle,
       description: 'Sessions finalized',
-      onClick: () => navigate('/admin/all-sessions', { state: { filterCompleted: true } }),
+      onClick: () => navigate('/admin/sessions', { state: { filterCompleted: true } }),
     },
   ];
 
