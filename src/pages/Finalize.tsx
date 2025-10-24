@@ -46,31 +46,26 @@ export default function Finalize() {
   };
 
   const canFinalize = () => {
-    if (!session) return false;
-    const now = new Date();
-    const hours = now.getHours();
-    return hours < 11 && session.punch_in_time && session.stalls.length > 0 && session.media.length > 0;
+    return !!session;
   };
 
   const handleFinalize = async () => {
-    if (!canFinalize()) {
-      toast.error('Cannot finalize: ensure all requirements are met before 11 AM');
-      return;
-    }
-
     setFinalizing(true);
     try {
+      const now = new Date().toISOString();
+      
+      // Update session to completed
       const { error } = await supabase
         .from('sessions')
-        .update({ status: 'finalized', finalized_at: new Date().toISOString() })
+        .update({ status: 'finalized', finalized_at: now })
         .eq('id', session.id);
 
       if (error) throw error;
 
-      toast.success('Session finalized successfully!');
+      toast.success('Session marked as complete!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error('Failed to finalize session');
+      toast.error('Failed to complete session');
       console.error(error);
     } finally {
       setFinalizing(false);
@@ -106,38 +101,48 @@ export default function Finalize() {
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Card>
           <CardHeader>
-            <CardTitle>Finalize Report</CardTitle>
-            <CardDescription>Review and lock your daily report</CardDescription>
+            <CardTitle>Mark Session Complete</CardTitle>
+            <CardDescription>Optional: Mark your session as completed for the day</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="bg-info/10 p-4 rounded-lg">
+              <p className="text-sm">
+                All your tasks are automatically saved in real-time. This button is optional and simply marks your session as "completed" for the day.
+              </p>
+            </div>
+
             <div className="space-y-3">
-              <h3 className="font-semibold">Requirements Checklist</h3>
-              {requirements.map((req) => (
-                <div key={req.label} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                  {req.met ? (
-                    <CheckCircle className="h-5 w-5 text-success" />
-                  ) : (
-                    <AlertCircle className="h-5 w-5 text-warning" />
-                  )}
-                  <span className={req.met ? 'text-foreground' : 'text-muted-foreground'}>{req.label}</span>
+              <h3 className="font-semibold">Session Summary</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Punch In</p>
+                  <p className="font-semibold">
+                    {session.punch_in_time ? 'Recorded' : 'Not recorded'}
+                  </p>
                 </div>
-              ))}
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Stalls Added</p>
+                  <p className="font-semibold">{session.stalls?.length || 0}</p>
+                </div>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Media Files</p>
+                  <p className="font-semibold">{session.media?.length || 0}</p>
+                </div>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <p className="font-semibold capitalize">{session.status}</p>
+                </div>
+              </div>
             </div>
 
             <Button
               onClick={handleFinalize}
-              disabled={!canFinalize() || finalizing}
+              disabled={!canFinalize() || finalizing || session.status === 'finalized'}
               className="w-full"
               size="lg"
             >
-              {finalizing ? 'Finalizing...' : 'Finalize Report'}
+              {finalizing ? 'Marking Complete...' : session.status === 'finalized' ? 'Already Completed' : 'Mark Session Complete'}
             </Button>
-
-            <div className="bg-warning/10 p-4 rounded-lg">
-              <p className="text-sm text-warning-foreground">
-                <strong>Warning:</strong> Once finalized, you cannot make changes to today's report.
-              </p>
-            </div>
           </CardContent>
         </Card>
       </main>

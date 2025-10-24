@@ -81,6 +81,8 @@ export default function Stalls() {
     }
 
     try {
+      const now = new Date().toISOString();
+      
       if (editingStall) {
         const { error } = await supabase
           .from('stalls')
@@ -88,6 +90,32 @@ export default function Stalls() {
           .eq('id', editingStall.id);
 
         if (error) throw error;
+        
+        // Create task event for update
+        const { data: eventData, error: eventError } = await supabase
+          .from('task_events')
+          .insert({
+            session_id: session.id,
+            task_type: 'stall_confirm',
+            payload: { action: 'update', stall: formData },
+            created_at: now,
+          })
+          .select()
+          .single();
+
+        if (eventError) throw eventError;
+
+        // Update task status
+        await supabase
+          .from('task_status')
+          .upsert({
+            session_id: session.id,
+            task_type: 'stall_confirm',
+            status: 'submitted',
+            latest_event_id: eventData.id,
+            updated_at: now,
+          });
+        
         toast.success('Stall updated successfully!');
       } else {
         const { error } = await supabase
@@ -98,6 +126,32 @@ export default function Stalls() {
           });
 
         if (error) throw error;
+        
+        // Create task event for new stall
+        const { data: eventData, error: eventError } = await supabase
+          .from('task_events')
+          .insert({
+            session_id: session.id,
+            task_type: 'stall_confirm',
+            payload: { action: 'add', stall: formData },
+            created_at: now,
+          })
+          .select()
+          .single();
+
+        if (eventError) throw eventError;
+
+        // Update task status
+        await supabase
+          .from('task_status')
+          .upsert({
+            session_id: session.id,
+            task_type: 'stall_confirm',
+            status: 'submitted',
+            latest_event_id: eventData.id,
+            updated_at: now,
+          });
+        
         toast.success('Stall added successfully!');
       }
 

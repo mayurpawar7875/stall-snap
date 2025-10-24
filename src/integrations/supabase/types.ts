@@ -202,6 +202,7 @@ export type Database = {
           created_at: string
           finalized_at: string | null
           id: string
+          market_date: string | null
           market_id: string
           punch_in_time: string | null
           punch_out_time: string | null
@@ -214,6 +215,7 @@ export type Database = {
           created_at?: string
           finalized_at?: string | null
           id?: string
+          market_date?: string | null
           market_id: string
           punch_in_time?: string | null
           punch_out_time?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           created_at?: string
           finalized_at?: string | null
           id?: string
+          market_date?: string | null
           market_id?: string
           punch_in_time?: string | null
           punch_out_time?: string | null
@@ -323,6 +326,92 @@ export type Database = {
           },
         ]
       }
+      task_events: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          gps_lat: number | null
+          gps_lng: number | null
+          id: string
+          is_late: boolean
+          payload: Json | null
+          session_id: string
+          task_type: Database["public"]["Enums"]["task_type"]
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          is_late?: boolean
+          payload?: Json | null
+          session_id: string
+          task_type: Database["public"]["Enums"]["task_type"]
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          is_late?: boolean
+          payload?: Json | null
+          session_id?: string
+          task_type?: Database["public"]["Enums"]["task_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_status: {
+        Row: {
+          id: string
+          latest_event_id: string | null
+          session_id: string
+          status: Database["public"]["Enums"]["task_status_enum"]
+          task_type: Database["public"]["Enums"]["task_type"]
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          latest_event_id?: string | null
+          session_id: string
+          status?: Database["public"]["Enums"]["task_status_enum"]
+          task_type: Database["public"]["Enums"]["task_type"]
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          latest_event_id?: string | null
+          session_id?: string
+          status?: Database["public"]["Enums"]["task_status_enum"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_status_latest_event_id_fkey"
+            columns: ["latest_event_id"]
+            isOneToOne: false
+            referencedRelation: "task_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_status_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -365,6 +454,16 @@ export type Database = {
         | "market_video"
         | "cleaning_video"
       session_status: "active" | "finalized" | "locked"
+      task_status_enum: "pending" | "in_progress" | "submitted" | "locked"
+      task_type:
+        | "punch"
+        | "stall_confirm"
+        | "outside_rates"
+        | "selfie_gps"
+        | "rate_board"
+        | "market_video"
+        | "cleaning_video"
+        | "collection"
       user_role: "employee" | "admin"
     }
     CompositeTypes: {
@@ -501,6 +600,17 @@ export const Constants = {
         "cleaning_video",
       ],
       session_status: ["active", "finalized", "locked"],
+      task_status_enum: ["pending", "in_progress", "submitted", "locked"],
+      task_type: [
+        "punch",
+        "stall_confirm",
+        "outside_rates",
+        "selfie_gps",
+        "rate_board",
+        "market_video",
+        "cleaning_video",
+        "collection",
+      ],
       user_role: ["employee", "admin"],
     },
   },

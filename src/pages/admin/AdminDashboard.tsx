@@ -8,6 +8,8 @@ import LiveMarketsWidget from '@/components/admin/LiveMarketsWidget';
 import RealtimeMediaFeed from '@/components/admin/RealtimeMediaFeed';
 import CollectionsWidget from '@/components/admin/CollectionsWidget';
 import StallConfirmationsWidget from '@/components/admin/StallConfirmationsWidget';
+import EmployeeTimeline from '@/components/admin/EmployeeTimeline';
+import TaskProgressWidget from '@/components/admin/TaskProgressWidget';
 
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
@@ -127,6 +129,10 @@ export default function AdminDashboard() {
         <LiveMarketsWidget />
         <RealtimeMediaFeed />
       </div>
+
+      <EmployeeTimeline />
+      
+      <TaskProgressWidget />
 
       <CollectionsWidget />
       

@@ -48,12 +48,40 @@ export default function Punch() {
   const handlePunchIn = async () => {
     setActionLoading(true);
     try {
-      const { error } = await supabase
+      const now = new Date().toISOString();
+      
+      // Update session
+      const { error: sessionError } = await supabase
         .from('sessions')
-        .update({ punch_in_time: new Date().toISOString() })
+        .update({ punch_in_time: now })
         .eq('id', session.id);
 
-      if (error) throw error;
+      if (sessionError) throw sessionError;
+
+      // Create task event
+      const { data: eventData, error: eventError } = await supabase
+        .from('task_events')
+        .insert({
+          session_id: session.id,
+          task_type: 'punch',
+          payload: { action: 'punch_in', timestamp: now },
+          created_at: now,
+        })
+        .select()
+        .single();
+
+      if (eventError) throw eventError;
+
+      // Update task status
+      await supabase
+        .from('task_status')
+        .upsert({
+          session_id: session.id,
+          task_type: 'punch',
+          status: 'in_progress',
+          latest_event_id: eventData.id,
+          updated_at: now,
+        });
 
       toast.success('Punched in successfully!');
       fetchSession();
@@ -68,12 +96,40 @@ export default function Punch() {
   const handlePunchOut = async () => {
     setActionLoading(true);
     try {
-      const { error } = await supabase
+      const now = new Date().toISOString();
+      
+      // Update session
+      const { error: sessionError } = await supabase
         .from('sessions')
-        .update({ punch_out_time: new Date().toISOString() })
+        .update({ punch_out_time: now })
         .eq('id', session.id);
 
-      if (error) throw error;
+      if (sessionError) throw sessionError;
+
+      // Create task event
+      const { data: eventData, error: eventError } = await supabase
+        .from('task_events')
+        .insert({
+          session_id: session.id,
+          task_type: 'punch',
+          payload: { action: 'punch_out', timestamp: now },
+          created_at: now,
+        })
+        .select()
+        .single();
+
+      if (eventError) throw eventError;
+
+      // Update task status
+      await supabase
+        .from('task_status')
+        .upsert({
+          session_id: session.id,
+          task_type: 'punch',
+          status: 'submitted',
+          latest_event_id: eventData.id,
+          updated_at: now,
+        });
 
       toast.success('Punched out successfully!');
       fetchSession();
