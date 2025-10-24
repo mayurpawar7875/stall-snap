@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,8 +23,12 @@ export default function StallConfirmationsWidget() {
   const [filteredConfirmations, setFilteredConfirmations] = useState<StallConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMarket, setSelectedMarket] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<string>('all');
+  const [markets, setMarkets] = useState<any[]>([]);
 
   useEffect(() => {
+    fetchMarkets();
     fetchConfirmations();
     
     const channel = supabase
@@ -40,19 +45,47 @@ export default function StallConfirmationsWidget() {
     };
   }, []);
 
-  useEffect(() => {
-    if (searchTerm) {
-      setFilteredConfirmations(
-        confirmations.filter(c => 
-          c.farmer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.stall_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.market_name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    } else {
-      setFilteredConfirmations(confirmations);
+  const fetchMarkets = async () => {
+    try {
+      const { data } = await supabase
+        .from('markets')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      setMarkets(data || []);
+    } catch (error) {
+      console.error('Error fetching markets:', error);
     }
-  }, [searchTerm, confirmations]);
+  };
+
+  useEffect(() => {
+    let filtered = [...confirmations];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(c => 
+        c.farmer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.stall_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.market_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply market filter
+    if (selectedMarket && selectedMarket !== 'all') {
+      filtered = filtered.filter(c => c.market_name === selectedMarket);
+    }
+
+    // Apply date filter
+    if (selectedDate && selectedDate !== 'all') {
+      filtered = filtered.filter(c => {
+        if (!c.market_date) return false;
+        const confirmDate = new Date(c.market_date).toISOString().split('T')[0];
+        return confirmDate === selectedDate;
+      });
+    }
+
+    setFilteredConfirmations(filtered);
+  }, [searchTerm, confirmations, selectedMarket, selectedDate]);
 
   const fetchConfirmations = async () => {
     try {
@@ -171,12 +204,46 @@ export default function StallConfirmationsWidget() {
             Export CSV
           </Button>
         </div>
-        <Input
-          placeholder="Search by farmer, stall, or market..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mt-4"
-        />
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Market</label>
+              <Select value={selectedMarket} onValueChange={setSelectedMarket}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All markets" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Markets</SelectItem>
+                  {markets.map((market) => (
+                    <SelectItem key={market.id} value={market.name}>
+                      {market.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date</label>
+              <Select value={selectedDate} onValueChange={setSelectedDate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All dates" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Dates</SelectItem>
+                  <SelectItem value={new Date().toISOString().split('T')[0]}>Today</SelectItem>
+                  <SelectItem value={new Date(Date.now() - 86400000).toISOString().split('T')[0]}>Yesterday</SelectItem>
+                  <SelectItem value={new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]}>2 Days Ago</SelectItem>
+                  <SelectItem value={new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]}>Last Week</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Input
+            placeholder="Search by farmer, stall, or market..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-2 max-h-96 overflow-y-auto">
