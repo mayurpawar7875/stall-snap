@@ -56,27 +56,37 @@ export function StallConfirmationsTable({ marketId, marketDate, isToday, marketN
   const fetchConfirmations = async () => {
     setLoading(true);
 
-    const { data } = await supabase
+    // Fetch stall confirmations
+    const { data: sc, error: scErr } = await supabase
       .from('stall_confirmations')
-      .select(`
-        id,
-        created_at,
-        farmer_name,
-        stall_name,
-        stall_no,
-        created_by,
-        profiles!stall_confirmations_created_by_fkey (
-          full_name
-        )
-      `)
+      .select('id, created_at, farmer_name, stall_name, stall_no, created_by')
       .eq('market_id', marketId)
       .eq('market_date', marketDate)
       .order('created_at', { ascending: false });
 
-    if (data) {
-      setConfirmations(data as any);
-    }
+    if (scErr) console.error(scErr);
 
+    const scUserIds = [...new Set((sc ?? []).map(r => r.created_by).filter(Boolean))];
+
+    // Fetch employees
+    const { data: scEmps, error: scEmpErr } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', scUserIds.length ? scUserIds : ['00000000-0000-0000-0000-000000000000']);
+
+    if (scEmpErr) console.error(scEmpErr);
+
+    const scEmpById: Record<string, string> = Object.fromEntries(
+      (scEmps ?? []).map(e => [e.id, e.full_name])
+    );
+
+    // Merge data
+    const stalls = (sc ?? []).map(r => ({
+      ...r,
+      profiles: { full_name: scEmpById[r.created_by] ?? '—' }
+    }));
+
+    setConfirmations(stalls as any);
     setLoading(false);
   };
 

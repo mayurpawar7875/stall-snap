@@ -64,34 +64,41 @@ export default function MarketDetail() {
       
       const dateStr = getISTDateString(selectedDate);
       
-      // Prioritize active session, then latest completed session
-      const { data } = await supabase
+      // Fetch sessions
+      const { data: s, error: sErr } = await supabase
         .from('sessions')
-        .select('user_id')
+        .select('id, user_id, market_id, market_date, punch_in_time, punch_out_time, status')
         .eq('market_id', marketId)
         .eq('market_date', dateStr)
-        .order('status', { ascending: false }) // 'active' comes before 'completed'
-        .order('punch_in_time', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('punch_in_time', { ascending: false });
 
-      if (data) {
-        // Fetch the profile separately
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('full_name, phone')
-          .eq('id', data.user_id)
-          .single();
-        
-        if (profileData) {
-          setOrganiser({
-            full_name: profileData.full_name,
-            phone: profileData.phone,
-            email: null
-          });
-        } else {
-          setOrganiser(null);
-        }
+      if (sErr) console.error(sErr);
+
+      const userIds = [...new Set((s ?? []).map(r => r.user_id).filter(Boolean))];
+
+      // Fetch employees
+      const { data: emps, error: eErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+      if (eErr) console.error(eErr);
+
+      const empById: Record<string, any> = Object.fromEntries((emps ?? []).map(e => [e.id, e]));
+
+      // Pick organiser = active session first, else latest
+      const organiserSession = (s ?? []).sort((a, b) => 
+        (a.status === 'active' ? -1 : 1) || 
+        (new Date(b.punch_in_time || 0).getTime() - new Date(a.punch_in_time || 0).getTime())
+      )[0];
+
+      if (organiserSession && empById[organiserSession.user_id]) {
+        const emp = empById[organiserSession.user_id];
+        setOrganiser({
+          full_name: emp.full_name,
+          phone: emp.phone,
+          email: null
+        });
       } else {
         setOrganiser(null);
       }

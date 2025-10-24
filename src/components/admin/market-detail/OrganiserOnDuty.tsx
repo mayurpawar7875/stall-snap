@@ -54,44 +54,60 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
   const fetchOrganiser = async () => {
     setLoading(true);
     
-    // Prioritize active session, then latest completed session
-    const { data } = await supabase
+    // Fetch sessions (status can be: active, finalized, locked)
+    const { data: s, error: sErr } = await supabase
       .from('sessions')
-      .select(`
-        id,
-        user_id,
-        punch_in_time,
-        punch_out_time,
-        status,
-        profiles!sessions_user_id_fkey (
-          full_name,
-          phone
-        )
-      `)
+      .select('id, user_id, punch_in_time, punch_out_time, status')
       .eq('market_id', marketId)
       .eq('market_date', marketDate)
-      .order('status', { ascending: false }) // 'active' comes before 'completed'
-      .order('punch_in_time', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('punch_in_time', { ascending: false });
 
-    if (data) {
-      setOrganiser(data as any);
+    if (sErr) console.error(sErr);
+
+    const userIds = [...new Set((s ?? []).map(r => r.user_id).filter(Boolean))];
+
+    // Fetch employees
+    const { data: emps, error: eErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+    if (eErr) console.error(eErr);
+
+    const empById: Record<string, any> = Object.fromEntries((emps ?? []).map(e => [e.id, e]));
+
+    // Pick organiser = active session first, else latest completed
+    const organiserSession = (s ?? []).sort((a, b) => 
+      (a.status === 'active' ? -1 : 1) || 
+      (new Date(b.punch_in_time || 0).getTime() - new Date(a.punch_in_time || 0).getTime())
+    )[0];
+
+    if (organiserSession) {
+      const emp = empById[organiserSession.user_id];
+      setOrganiser({
+        ...organiserSession,
+        profiles: emp ? {
+          full_name: emp.full_name,
+          phone: emp.phone
+        } : { full_name: 'Unknown', phone: null }
+      } as any);
 
       // Fetch last activity
       const { data: mediaData } = await supabase
         .from('media')
         .select('captured_at')
-        .eq('user_id', data.user_id)
+        .eq('user_id', organiserSession.user_id)
         .eq('market_id', marketId)
         .eq('market_date', marketDate)
         .order('captured_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (mediaData) {
         setLastActivity(mediaData.captured_at);
       }
+    } else {
+      setOrganiser(null);
     }
 
     setLoading(false);

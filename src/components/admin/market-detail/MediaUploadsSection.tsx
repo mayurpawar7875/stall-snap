@@ -56,27 +56,37 @@ export function MediaUploadsSection({ marketId, marketDate, isToday }: Props) {
   const fetchUploads = async () => {
     setLoading(true);
 
-    const { data } = await supabase
+    // Fetch media uploads
+    const { data: u, error: uErr } = await supabase
       .from('media')
-      .select(`
-        id,
-        captured_at,
-        media_type,
-        is_late,
-        file_url,
-        user_id,
-        profiles!media_user_id_fkey (
-          full_name
-        )
-      `)
+      .select('id, captured_at, media_type, is_late, file_url, user_id')
       .eq('market_id', marketId)
       .eq('market_date', marketDate)
       .order('captured_at', { ascending: false });
 
-    if (data) {
-      setUploads(data as any);
-    }
+    if (uErr) console.error(uErr);
 
+    const uUserIds = [...new Set((u ?? []).map(r => r.user_id).filter(Boolean))];
+
+    // Fetch employees
+    const { data: uEmps, error: uEmpErr } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', uUserIds.length ? uUserIds : ['00000000-0000-0000-0000-000000000000']);
+
+    if (uEmpErr) console.error(uEmpErr);
+
+    const uEmpById: Record<string, string> = Object.fromEntries(
+      (uEmps ?? []).map(e => [e.id, e.full_name])
+    );
+
+    // Merge data
+    const media = (u ?? []).map(r => ({
+      ...r,
+      profiles: { full_name: uEmpById[r.user_id] ?? '—' }
+    }));
+
+    setUploads(media as any);
     setLoading(false);
   };
 
