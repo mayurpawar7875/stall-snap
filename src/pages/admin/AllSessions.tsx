@@ -97,10 +97,10 @@ export default function AllSessions() {
     if (filters.dateTo) {
       filtered = filtered.filter((s) => s.session_date <= filters.dateTo);
     }
-    if (filters.status) {
+    if (filters.status && filters.status !== 'all') {
       filtered = filtered.filter((s) => s.status === filters.status);
     }
-    if (filters.marketId) {
+    if (filters.marketId && filters.marketId !== 'all') {
       filtered = filtered.filter((s) => s.markets && 'id' in s.markets && (s.markets as any).id === filters.marketId);
     }
 
@@ -205,7 +205,7 @@ export default function AllSessions() {
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="finalized">Finalized</SelectItem>
                   <SelectItem value="locked">Locked</SelectItem>
@@ -222,7 +222,7 @@ export default function AllSessions() {
                   <SelectValue placeholder="All markets" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   {markets.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.name}
