@@ -31,7 +31,7 @@ export default function StallConfirmationsWidget() {
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'stall_confirmations' 
+        table: 'stalls' 
       }, fetchConfirmations)
       .subscribe();
 
@@ -57,16 +57,14 @@ export default function StallConfirmationsWidget() {
   const fetchConfirmations = async () => {
     try {
       const { data, error } = await supabase
-        .from('stall_confirmations')
+        .from('stalls')
         .select(`
           id,
           farmer_name,
           stall_name,
           stall_no,
-          market_date,
           created_at,
-          market_id,
-          created_by
+          session_id
         `)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -81,9 +79,20 @@ export default function StallConfirmationsWidget() {
         return;
       }
 
+      // Get unique session IDs
+      const sessionIds = [...new Set(confirmations.map(c => c.session_id).filter(Boolean))];
+
+      // Fetch sessions to get market_id, market_date, and created_by (user_id)
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id, user_id, market_id, market_date, session_date')
+        .in('id', sessionIds);
+
+      const sessionById = Object.fromEntries((sessions || []).map((s: any) => [s.id, s]));
+
       // Get unique user and market IDs
-      const userIds = [...new Set(confirmations.map(c => c.created_by).filter(Boolean))];
-      const marketIds = [...new Set(confirmations.map(c => c.market_id).filter(Boolean))];
+      const userIds = [...new Set((sessions || []).map((s: any) => s.user_id).filter(Boolean))];
+      const marketIds = [...new Set((sessions || []).map((s: any) => s.market_id).filter(Boolean))];
 
       // Fetch employees and markets
       const [{ data: employees }, { data: markets }] = await Promise.all([
@@ -94,16 +103,19 @@ export default function StallConfirmationsWidget() {
       const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e.full_name]));
       const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m.name]));
 
-      const formatted = confirmations.map((item: any) => ({
-        id: item.id,
-        farmer_name: item.farmer_name,
-        stall_name: item.stall_name,
-        stall_no: item.stall_no,
-        market_name: mktById[item.market_id] || 'Unknown',
-        market_date: item.market_date,
-        created_at: item.created_at,
-        entered_by: empById[item.created_by] || 'Unknown',
-      }));
+      const formatted = confirmations.map((item: any) => {
+        const session = sessionById[item.session_id];
+        return {
+          id: item.id,
+          farmer_name: item.farmer_name,
+          stall_name: item.stall_name,
+          stall_no: item.stall_no,
+          market_name: session ? mktById[session.market_id] || 'Unknown' : 'Unknown',
+          market_date: session ? (session.market_date || session.session_date) : null,
+          created_at: item.created_at,
+          entered_by: session ? empById[session.user_id] || 'Unknown' : 'Unknown',
+        };
+      });
 
       setConfirmations(formatted);
       setFilteredConfirmations(formatted);
