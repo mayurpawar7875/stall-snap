@@ -22,11 +22,10 @@ interface MediaUpload {
 interface Props {
   marketId: string;
   marketDate: string;
-  employeeId?: string;
   isToday: boolean;
 }
 
-export function MediaUploadsSection({ marketId, marketDate, employeeId, isToday }: Props) {
+export function MediaUploadsSection({ marketId, marketDate, isToday }: Props) {
   const [uploads, setUploads] = useState<MediaUpload[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,12 +51,12 @@ export function MediaUploadsSection({ marketId, marketDate, employeeId, isToday 
         supabase.removeChannel(channel);
       };
     }
-  }, [marketId, marketDate, employeeId, isToday]);
+  }, [marketId, marketDate, isToday]);
 
   const fetchUploads = async () => {
     setLoading(true);
 
-    let query = supabase
+    const { data } = await supabase
       .from('media')
       .select(`
         id,
@@ -71,13 +70,8 @@ export function MediaUploadsSection({ marketId, marketDate, employeeId, isToday 
         )
       `)
       .eq('market_id', marketId)
-      .eq('market_date', marketDate);
-
-    if (employeeId) {
-      query = query.eq('user_id', employeeId);
-    }
-
-    const { data } = await query.order('captured_at', { ascending: false });
+      .eq('market_date', marketDate)
+      .order('captured_at', { ascending: false });
 
     if (data) {
       setUploads(data as any);

@@ -20,9 +20,10 @@ interface Market {
   city: string | null;
 }
 
-interface Employee {
-  id: string;
+interface Organiser {
   full_name: string;
+  phone: string | null;
+  email: string | null;
 }
 
 export default function MarketDetail() {
@@ -31,8 +32,7 @@ export default function MarketDetail() {
   const { user } = useAuth();
   const [market, setMarket] = useState<Market | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [organiser, setOrganiser] = useState<Organiser | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Get IST date string
@@ -55,17 +55,44 @@ export default function MarketDetail() {
       if (data) setMarket(data);
     };
 
-    const fetchEmployees = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .order('full_name');
+    fetchMarket().finally(() => setLoading(false));
+  }, [marketId]);
+
+  useEffect(() => {
+    const fetchOrganiser = async () => {
+      if (!marketId) return;
       
-      if (data) setEmployees(data);
+      const dateStr = getISTDateString(selectedDate);
+      
+      // Prioritize active session, then latest completed session
+      const { data } = await supabase
+        .from('sessions')
+        .select(`
+          profiles!sessions_user_id_fkey (
+            full_name,
+            phone
+          )
+        `)
+        .eq('market_id', marketId)
+        .eq('market_date', dateStr)
+        .order('status', { ascending: false }) // 'active' comes before 'completed'
+        .order('punch_in_time', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data?.profiles) {
+        setOrganiser({
+          full_name: data.profiles.full_name,
+          phone: data.profiles.phone,
+          email: null // Add email to profiles query if needed
+        });
+      } else {
+        setOrganiser(null);
+      }
     };
 
-    Promise.all([fetchMarket(), fetchEmployees()]).finally(() => setLoading(false));
-  }, [marketId]);
+    fetchOrganiser();
+  }, [marketId, selectedDate]);
 
   if (loading) {
     return (
@@ -142,20 +169,21 @@ export default function MarketDetail() {
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium mb-2 block">Employee</label>
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Employees</SelectItem>
-                    {employees.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium mb-2 block">Organiser</label>
+                {organiser ? (
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <div className="flex-1">
+                      <div className="font-medium">{organiser.full_name}</div>
+                      {organiser.phone && (
+                        <div className="text-xs text-muted-foreground">{organiser.phone}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2 bg-muted rounded-md text-sm text-muted-foreground">
+                    No organiser assigned
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -165,7 +193,6 @@ export default function MarketDetail() {
         <OrganiserOnDuty
           marketId={marketId!}
           marketDate={getISTDateString(selectedDate)}
-          employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee}
           isToday={isToday}
         />
 
@@ -173,7 +200,6 @@ export default function MarketDetail() {
         <StallConfirmationsTable
           marketId={marketId!}
           marketDate={getISTDateString(selectedDate)}
-          employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee}
           isToday={isToday}
           marketName={market.name}
         />
@@ -182,7 +208,6 @@ export default function MarketDetail() {
         <MediaUploadsSection
           marketId={marketId!}
           marketDate={getISTDateString(selectedDate)}
-          employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee}
           isToday={isToday}
         />
       </div>

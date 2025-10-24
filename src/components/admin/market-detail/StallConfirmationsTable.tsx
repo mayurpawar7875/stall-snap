@@ -21,12 +21,11 @@ interface StallConfirmation {
 interface Props {
   marketId: string;
   marketDate: string;
-  employeeId?: string;
   isToday: boolean;
   marketName: string;
 }
 
-export function StallConfirmationsTable({ marketId, marketDate, employeeId, isToday, marketName }: Props) {
+export function StallConfirmationsTable({ marketId, marketDate, isToday, marketName }: Props) {
   const [confirmations, setConfirmations] = useState<StallConfirmation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,12 +51,12 @@ export function StallConfirmationsTable({ marketId, marketDate, employeeId, isTo
         supabase.removeChannel(channel);
       };
     }
-  }, [marketId, marketDate, employeeId, isToday]);
+  }, [marketId, marketDate, isToday]);
 
   const fetchConfirmations = async () => {
     setLoading(true);
 
-    let query = supabase
+    const { data } = await supabase
       .from('stall_confirmations')
       .select(`
         id,
@@ -71,13 +70,8 @@ export function StallConfirmationsTable({ marketId, marketDate, employeeId, isTo
         )
       `)
       .eq('market_id', marketId)
-      .eq('market_date', marketDate);
-
-    if (employeeId) {
-      query = query.eq('created_by', employeeId);
-    }
-
-    const { data } = await query.order('created_at', { ascending: false });
+      .eq('market_date', marketDate)
+      .order('created_at', { ascending: false });
 
     if (data) {
       setConfirmations(data as any);

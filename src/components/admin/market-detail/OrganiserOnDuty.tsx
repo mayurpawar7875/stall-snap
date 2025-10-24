@@ -19,11 +19,10 @@ interface OrganiserData {
 interface Props {
   marketId: string;
   marketDate: string;
-  employeeId?: string;
   isToday: boolean;
 }
 
-export function OrganiserOnDuty({ marketId, marketDate, employeeId, isToday }: Props) {
+export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
   const [organiser, setOrganiser] = useState<OrganiserData | null>(null);
   const [lastActivity, setLastActivity] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,12 +49,13 @@ export function OrganiserOnDuty({ marketId, marketDate, employeeId, isToday }: P
         supabase.removeChannel(channel);
       };
     }
-  }, [marketId, marketDate, employeeId, isToday]);
+  }, [marketId, marketDate, isToday]);
 
   const fetchOrganiser = async () => {
     setLoading(true);
     
-    let query = supabase
+    // Prioritize active session, then latest completed session
+    const { data } = await supabase
       .from('sessions')
       .select(`
         id,
@@ -69,13 +69,11 @@ export function OrganiserOnDuty({ marketId, marketDate, employeeId, isToday }: P
         )
       `)
       .eq('market_id', marketId)
-      .eq('market_date', marketDate);
-
-    if (employeeId) {
-      query = query.eq('user_id', employeeId);
-    }
-
-    const { data } = await query.order('punch_in_time', { ascending: false }).limit(1).single();
+      .eq('market_date', marketDate)
+      .order('status', { ascending: false }) // 'active' comes before 'completed'
+      .order('punch_in_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (data) {
       setOrganiser(data as any);
@@ -119,7 +117,9 @@ export function OrganiserOnDuty({ marketId, marketDate, employeeId, isToday }: P
           <CardTitle>Organiser on Duty</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-muted-foreground">No organiser on duty</div>
+          <div className="text-center text-muted-foreground">
+            No session for this market/date. Ensure Punch-In created a session for ({marketId}, {marketDate}).
+          </div>
         </CardContent>
       </Card>
     );
