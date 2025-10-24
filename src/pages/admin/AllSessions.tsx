@@ -20,15 +20,18 @@ import { Download, Eye, Filter, MapPin, Calendar, Clock, User } from 'lucide-rea
 
 interface Session {
   id: string;
+  user_id: string;
+  market_id: string;
   session_date: string;
+  market_date: string | null;
   punch_in_time: string | null;
   punch_out_time: string | null;
   status: string;
   finalized_at: string | null;
-  employees: { full_name: string; phone: string | null };
-  markets: { name: string; location: string };
-  stalls: any[];
-  media: any[];
+  employees: { full_name: string; phone: string | null } | null;
+  markets: { name: string; location: string } | null;
+  stalls?: any[];
+  media?: any[];
 }
 
 export default function AllSessions() {
@@ -78,22 +81,39 @@ export default function AllSessions() {
 
   const fetchSessions = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch sessions with related data
+      const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
-        .select(
-          `
+        .select(`
           *,
-          employees!sessions_user_id_fkey (full_name, phone),
-          markets!sessions_market_id_fkey (name, location),
-          stalls (*),
-          media (*)
-        `
-        )
+          employees(full_name, phone),
+          markets(name, location),
+          media(*)
+        `)
         .order('session_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setSessions(data as any || []);
+      if (sessionsError) throw sessionsError;
+
+      // Fetch all stall confirmations
+      const { data: stallsData, error: stallsError } = await supabase
+        .from('stall_confirmations')
+        .select('*');
+
+      if (stallsError) throw stallsError;
+
+      // Match stalls to sessions
+      const sessionsWithStalls = (sessionsData || []).map((session: any) => ({
+        ...session,
+        stalls: (stallsData || []).filter(
+          (stall: any) =>
+            stall.created_by === session.user_id &&
+            stall.market_id === session.market_id &&
+            stall.market_date === (session.market_date || session.session_date)
+        ),
+      }));
+
+      setSessions(sessionsWithStalls as any);
     } catch (error: any) {
       toast.error('Failed to load sessions');
       console.error(error);
