@@ -122,7 +122,7 @@ export default function LiveMarket() {
         `)
         .eq('market_id', selectedMarket)
         .eq('session_date', dateStr)
-        .in('status', ['active', 'finalized']);
+        .in('status', ['active', 'completed', 'finalized']);
 
       if (error) throw error;
 
@@ -256,13 +256,13 @@ export default function LiveMarket() {
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       
-      // Active + finalized employees for the day
+      // Active + completed employees for the day
       const { count: activeCount } = await supabase
         .from('sessions')
         .select('*', { count: 'exact', head: true })
         .eq('market_id', selectedMarket)
         .eq('session_date', dateStr)
-        .in('status', ['active', 'finalized']);
+        .in('status', ['active', 'completed', 'finalized']);
 
       // Stalls confirmed - direct filtering
       const { count: stallsCount } = await supabase

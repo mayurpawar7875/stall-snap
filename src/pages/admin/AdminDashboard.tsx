@@ -52,7 +52,7 @@ export default function AdminDashboard() {
           .from('sessions')
           .select('id', { count: 'exact', head: true })
           .eq('session_date', today)
-          .eq('status', 'finalized'),
+          .in('status', ['completed', 'finalized']),
       ]);
 
       setStats({
@@ -88,10 +88,10 @@ export default function AdminDashboard() {
       description: 'Active today',
     },
     {
-      title: 'Finalized Today',
+      title: 'Completed Today',
       value: stats.finalizedToday,
       icon: CheckCircle,
-      description: 'Completed reports',
+      description: 'Sessions finalized',
     },
   ];
 

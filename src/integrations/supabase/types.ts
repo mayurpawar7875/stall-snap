@@ -254,6 +254,47 @@ export type Database = {
         }
         Relationships: []
       }
+      session_summaries: {
+        Row: {
+          created_at: string
+          finalized_at: string
+          first_activity_at: string | null
+          last_activity_at: string | null
+          late_uploads_count: number
+          media_count: number
+          session_id: string
+          stalls_count: number
+        }
+        Insert: {
+          created_at?: string
+          finalized_at?: string
+          first_activity_at?: string | null
+          last_activity_at?: string | null
+          late_uploads_count?: number
+          media_count?: number
+          session_id: string
+          stalls_count?: number
+        }
+        Update: {
+          created_at?: string
+          finalized_at?: string
+          first_activity_at?: string | null
+          last_activity_at?: string | null
+          late_uploads_count?: number
+          media_count?: number
+          session_id?: string
+          stalls_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_summaries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           created_at: string
@@ -543,7 +584,7 @@ export type Database = {
         | "rate_board"
         | "market_video"
         | "cleaning_video"
-      session_status: "active" | "finalized" | "locked"
+      session_status: "active" | "finalized" | "locked" | "completed"
       task_status_enum: "pending" | "in_progress" | "submitted" | "locked"
       task_type:
         | "punch"
@@ -689,7 +730,7 @@ export const Constants = {
         "market_video",
         "cleaning_video",
       ],
-      session_status: ["active", "finalized", "locked"],
+      session_status: ["active", "finalized", "locked", "completed"],
       task_status_enum: ["pending", "in_progress", "submitted", "locked"],
       task_type: [
         "punch",

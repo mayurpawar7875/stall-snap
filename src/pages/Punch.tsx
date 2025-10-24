@@ -98,10 +98,14 @@ export default function Punch() {
     try {
       const now = new Date().toISOString();
       
-      // Update session
+      // Update session with punch_out_time and status='completed'
+      // This will trigger the finalize_session_on_punchout trigger
       const { error: sessionError } = await supabase
         .from('sessions')
-        .update({ punch_out_time: now })
+        .update({ 
+          punch_out_time: now,
+          status: 'completed'
+        })
         .eq('id', session.id);
 
       if (sessionError) throw sessionError;
@@ -131,8 +135,12 @@ export default function Punch() {
           updated_at: now,
         });
 
-      toast.success('Punched out successfully!');
-      fetchSession();
+      toast.success('Session completed! Your report has been finalized.');
+      
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
     } catch (error: any) {
       toast.error('Failed to punch out');
       console.error(error);

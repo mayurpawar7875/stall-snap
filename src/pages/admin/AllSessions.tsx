@@ -143,6 +143,7 @@ export default function AllSessions() {
   const getStatusBadge = (status: string) => {
     const colors = {
       active: 'bg-info text-info-foreground',
+      completed: 'bg-success text-success-foreground',
       finalized: 'bg-success text-success-foreground',
       locked: 'bg-muted text-muted-foreground',
     };
@@ -207,6 +208,7 @@ export default function AllSessions() {
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="finalized">Finalized</SelectItem>
                   <SelectItem value="locked">Locked</SelectItem>
                 </SelectContent>

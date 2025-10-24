@@ -23,16 +23,26 @@ interface Session {
   session_date: string;
   punch_in_time: string | null;
   punch_out_time: string | null;
-  status: 'active' | 'finalized' | 'locked';
+  status: 'active' | 'completed' | 'finalized' | 'locked';
   market: { name: string; location: string };
   stalls: any[];
   media: any[];
+}
+
+interface SessionSummary {
+  stalls_count: number;
+  media_count: number;
+  late_uploads_count: number;
+  first_activity_at: string | null;
+  last_activity_at: string | null;
+  finalized_at: string;
 }
 
 export default function Dashboard() {
   const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [todaySession, setTodaySession] = useState<Session | null>(null);
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,6 +73,17 @@ export default function Dashboard() {
 
       if (error) throw error;
       setTodaySession(data);
+      
+      // If session is completed, fetch summary
+      if (data && (data.status === 'completed' || data.status === 'finalized')) {
+        const { data: summary } = await supabase
+          .from('session_summaries')
+          .select('*')
+          .eq('session_id', data.id)
+          .maybeSingle();
+        
+        setSessionSummary(summary);
+      }
     } catch (error: any) {
       console.error('Error fetching session:', error);
     } finally {
@@ -76,14 +97,9 @@ export default function Dashboard() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants = {
-      active: 'default',
-      finalized: 'default',
-      locked: 'secondary',
-    } as const;
-
     const colors = {
       active: 'bg-info text-info-foreground',
+      completed: 'bg-success text-success-foreground',
       finalized: 'bg-success text-success-foreground',
       locked: 'bg-muted text-muted-foreground',
     };
@@ -194,67 +210,104 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/punch')}>
-                <CardHeader>
-                  <Clock className="h-8 w-8 text-accent mb-2" />
-                  <CardTitle className="text-lg">Punch In/Out</CardTitle>
-                  <CardDescription>Record your attendance timestamps</CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => navigate('/stalls')}
-              >
-                <CardHeader>
-                  <FileText className="h-8 w-8 text-accent mb-2" />
-                  <CardTitle className="text-lg">Stalls</CardTitle>
-                  <CardDescription>
-                    {todaySession.stalls.length} stall{todaySession.stalls.length !== 1 ? 's' : ''} added
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => navigate('/media-upload')}
-              >
-                <CardHeader>
-                  <Camera className="h-8 w-8 text-accent mb-2" />
-                  <CardTitle className="text-lg">Media Upload</CardTitle>
-                  <CardDescription>
-                    {todaySession.media.length} file{todaySession.media.length !== 1 ? 's' : ''} uploaded
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => navigate('/finalize')}
-              >
-                <CardHeader>
-                  <CheckCircle className="h-8 w-8 text-success mb-2" />
-                  <CardTitle className="text-lg">Finalize</CardTitle>
-                  <CardDescription>Complete and lock your report</CardDescription>
-                </CardHeader>
-              </Card>
-            </div>
-
-            {/* Warnings */}
+            {/* Action Cards - Hide if completed */}
             {todaySession.status === 'active' && (
-              <Card className="border-warning">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/punch')}>
+                  <CardHeader>
+                    <Clock className="h-8 w-8 text-accent mb-2" />
+                    <CardTitle className="text-lg">Punch In/Out</CardTitle>
+                    <CardDescription>Record your attendance timestamps</CardDescription>
+                  </CardHeader>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => navigate('/stalls')}
+                >
+                  <CardHeader>
+                    <FileText className="h-8 w-8 text-accent mb-2" />
+                    <CardTitle className="text-lg">Stall Confirmations</CardTitle>
+                    <CardDescription>
+                      {todaySession.stalls.length} stall{todaySession.stalls.length !== 1 ? 's' : ''} added
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+
+                <Card
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => navigate('/media-upload')}
+                >
+                  <CardHeader>
+                    <Camera className="h-8 w-8 text-accent mb-2" />
+                    <CardTitle className="text-lg">Media Upload</CardTitle>
+                    <CardDescription>
+                      {todaySession.media.length} file{todaySession.media.length !== 1 ? 's' : ''} uploaded
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+            )}
+
+            {/* Session Summary - Show after completion */}
+            {(todaySession.status === 'completed' || todaySession.status === 'finalized') && sessionSummary && (
+              <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-warning" />
-                    <CardTitle className="text-warning">Remember</CardTitle>
+                    <CheckCircle className="h-5 w-5 text-success" />
+                    <CardTitle>Session Summary</CardTitle>
+                  </div>
+                  <CardDescription>Your session has been completed and finalized</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Stalls Confirmed</p>
+                      <p className="text-2xl font-bold">{sessionSummary.stalls_count}</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Media Uploaded</p>
+                      <p className="text-2xl font-bold">{sessionSummary.media_count}</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Late Uploads</p>
+                      <p className="text-2xl font-bold text-warning">{sessionSummary.late_uploads_count}</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Finalized At</p>
+                      <p className="text-sm font-semibold">
+                        {new Date(sessionSummary.finalized_at).toLocaleTimeString('en-IN', { 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          timeZone: 'Asia/Kolkata'
+                        })} IST
+                      </p>
+                    </div>
+                  </div>
+                  {sessionSummary.first_activity_at && sessionSummary.last_activity_at && (
+                    <div className="mt-4 p-3 bg-info/10 rounded-lg">
+                      <p className="text-sm">
+                        <strong>Activity Period:</strong> {new Date(sessionSummary.first_activity_at).toLocaleTimeString('en-IN')} - {new Date(sessionSummary.last_activity_at).toLocaleTimeString('en-IN')} IST
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Instructions */}
+            {todaySession.status === 'active' && (
+              <Card className="border-info">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-info" />
+                    <CardTitle>Instructions</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  <p>• Outside Market Rates media: Upload between 2:00 PM - 2:15 PM IST</p>
-                  <p>• Selfie + GPS: Upload between 2:15 PM - 2:20 PM IST</p>
-                  <p>• Finalize before 11:00 AM IST to lock your report</p>
+                  <p>• All tasks are saved automatically in real-time</p>
+                  <p>• Your session will be finalized when you Punch Out</p>
+                  <p>• Remember to Punch Out at the end of your shift</p>
                 </CardContent>
               </Card>
             )}
