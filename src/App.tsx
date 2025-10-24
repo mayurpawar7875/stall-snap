@@ -16,6 +16,7 @@ import Finalize from "./pages/Finalize";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AllSessions from "./pages/admin/AllSessions";
 import Users from "./pages/admin/Users";
+import LiveMarket from "./pages/admin/LiveMarket";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/media-upload" element={<ProtectedRoute><MediaUpload /></ProtectedRoute>} />
             <Route path="/finalize" element={<ProtectedRoute><Finalize /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminLayout><AdminDashboard /></AdminLayout></ProtectedRoute>} />
+            <Route path="/admin/live-market" element={<ProtectedRoute><AdminLayout><LiveMarket /></AdminLayout></ProtectedRoute>} />
             <Route path="/admin/sessions" element={<ProtectedRoute><AdminLayout><AllSessions /></AdminLayout></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><AdminLayout><Users /></AdminLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

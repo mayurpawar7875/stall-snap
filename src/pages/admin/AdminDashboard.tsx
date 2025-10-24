@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, FileText, CheckCircle, Clock } from 'lucide-react';
 import LiveMarketsWidget from '@/components/admin/LiveMarketsWidget';
+import LiveMarketWidget from '@/components/admin/LiveMarketWidget';
 import RealtimeMediaFeed from '@/components/admin/RealtimeMediaFeed';
 import CollectionsWidget from '@/components/admin/CollectionsWidget';
 import StallConfirmationsWidget from '@/components/admin/StallConfirmationsWidget';
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <LiveMarketsWidget />
+        <LiveMarketWidget />
         <RealtimeMediaFeed />
       </div>
 
@@ -134,9 +135,10 @@ export default function AdminDashboard() {
       
       <TaskProgressWidget />
 
-      <CollectionsWidget />
-      
-      <StallConfirmationsWidget />
+      <div className="grid gap-6 md:grid-cols-2">
+        <CollectionsWidget />
+        <StallConfirmationsWidget />
+      </div>
     </div>
   );
 }

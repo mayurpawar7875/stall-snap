@@ -1,10 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, MonitorPlay } from 'lucide-react';
 const menuItems = [{
   title: 'Dashboard',
   url: '/admin',
   icon: LayoutDashboard
+}, {
+  title: 'Live Market',
+  url: '/admin/live-market',
+  icon: MonitorPlay
 }, {
   title: 'All Sessions',
   url: '/admin/sessions',
