@@ -66,7 +66,7 @@ export default function StallConfirmationsWidget() {
           market_date,
           created_at,
           markets (name),
-          profiles!stall_confirmations_created_by_fkey (full_name)
+          employees!stall_confirmations_created_by_fkey (full_name)
         `)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -81,7 +81,7 @@ export default function StallConfirmationsWidget() {
         market_name: item.markets?.name || 'Unknown',
         market_date: item.market_date,
         created_at: item.created_at,
-        entered_by: item.profiles?.full_name || 'Unknown',
+        entered_by: item.employees?.full_name || 'Unknown',
       })) || [];
 
       setConfirmations(formatted);

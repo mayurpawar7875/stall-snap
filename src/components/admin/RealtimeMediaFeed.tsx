@@ -51,7 +51,7 @@ export default function RealtimeMediaFeed() {
           is_late,
           user_id,
           market_id,
-          profiles!media_user_id_fkey(full_name),
+          employees!media_user_id_fkey(full_name),
           markets!media_market_id_fkey(name)
         `)
         .order('captured_at', { ascending: false })
@@ -61,7 +61,7 @@ export default function RealtimeMediaFeed() {
 
       const formattedUploads = data?.map((item: any) => ({
         id: item.id,
-        employee_name: item.profiles?.full_name || 'Unknown',
+        employee_name: item.employees?.full_name || 'Unknown',
         market_name: item.markets?.name || 'Unknown',
         file_type: item.media_type.replace(/_/g, ' ').toUpperCase(),
         uploaded_at: item.captured_at,

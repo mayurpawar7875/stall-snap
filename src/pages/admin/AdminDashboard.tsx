@@ -31,7 +31,7 @@ export default function AdminDashboard() {
 
     const channel = supabase
       .channel('dashboard-stats')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, fetchStats)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, fetchStats)
       .subscribe();
 
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
       const today = new Date().toISOString().split('T')[0];
 
       const [usersRes, sessionsRes, todaySessionsRes, finalizedRes] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('sessions').select('id', { count: 'exact', head: true }),
         supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('session_date', today),
         supabase

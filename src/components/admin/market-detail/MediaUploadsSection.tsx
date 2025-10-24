@@ -70,7 +70,7 @@ export function MediaUploadsSection({ marketId, marketDate, isToday }: Props) {
 
     // Fetch employees
     const { data: uEmps, error: uEmpErr } = await supabase
-      .from('profiles')
+      .from('employees')
       .select('id, full_name')
       .in('id', uUserIds.length ? uUserIds : ['00000000-0000-0000-0000-000000000000']);
 

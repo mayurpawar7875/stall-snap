@@ -24,7 +24,7 @@ interface Session {
   punch_out_time: string | null;
   status: string;
   finalized_at: string | null;
-  profiles: { full_name: string; phone: string | null };
+  employees: { full_name: string; phone: string | null };
   markets: { name: string; location: string };
   stalls: any[];
   media: any[];
@@ -69,7 +69,7 @@ export default function AllSessions() {
         .select(
           `
           *,
-          profiles!sessions_user_id_fkey (full_name, phone),
+          employees!sessions_user_id_fkey (full_name, phone),
           markets!sessions_market_id_fkey (name, location),
           stalls (*),
           media (*)
@@ -121,7 +121,7 @@ export default function AllSessions() {
 
     const rows = filteredSessions.map((s) => [
       s.session_date,
-      s.profiles?.full_name || 'N/A',
+      s.employees?.full_name || 'N/A',
       s.markets?.name || 'N/A',
       s.punch_in_time ? new Date(s.punch_in_time).toLocaleString() : 'N/A',
       s.punch_out_time ? new Date(s.punch_out_time).toLocaleString() : 'N/A',
@@ -264,7 +264,7 @@ export default function AllSessions() {
                 <div className="flex justify-between items-start">
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-lg">{session.profiles?.full_name || 'Unknown'}</h3>
+                      <h3 className="font-semibold text-lg">{session.employees?.full_name || 'Unknown'}</h3>
                       {getStatusBadge(session.status)}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
@@ -311,7 +311,7 @@ export default function AllSessions() {
           <DialogHeader>
             <DialogTitle>Session Details</DialogTitle>
             <DialogDescription>
-              {selectedSession?.profiles?.full_name} -{' '}
+              {selectedSession?.employees?.full_name} -{' '}
               {selectedSession && new Date(selectedSession.session_date).toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
@@ -322,10 +322,10 @@ export default function AllSessions() {
                 <div>
                   <h4 className="font-semibold mb-2">Employee Information</h4>
                   <p className="text-sm">
-                    <strong>Name:</strong> {selectedSession.profiles?.full_name}
+                    <strong>Name:</strong> {selectedSession.employees?.full_name}
                   </p>
                   <p className="text-sm">
-                    <strong>Phone:</strong> {selectedSession.profiles?.phone || 'N/A'}
+                    <strong>Phone:</strong> {selectedSession.employees?.phone || 'N/A'}
                   </p>
                 </div>
                 <div>

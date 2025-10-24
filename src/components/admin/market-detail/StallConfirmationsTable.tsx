@@ -70,7 +70,7 @@ export function StallConfirmationsTable({ marketId, marketDate, isToday, marketN
 
     // Fetch employees
     const { data: scEmps, error: scEmpErr } = await supabase
-      .from('profiles')
+      .from('employees')
       .select('id, full_name')
       .in('id', scUserIds.length ? scUserIds : ['00000000-0000-0000-0000-000000000000']);
 

@@ -121,7 +121,7 @@ export function OrganiserOnDuty({ marketId, marketDate, isToday }: Props) {
     if (selectedUserId) {
       // Fetch the employee profile
       const { data: emp } = await supabase
-        .from('profiles')
+        .from('employees')
         .select('id, full_name, phone')
         .eq('id', selectedUserId)
         .maybeSingle();
