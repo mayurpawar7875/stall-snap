@@ -81,39 +81,62 @@ export default function AllSessions() {
 
   const fetchSessions = async () => {
     try {
-      // Fetch sessions with related data
+      // Fetch sessions without joins
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
-        .select(`
-          *,
-          employees(full_name, phone),
-          markets(name, location),
-          media(*)
-        `)
+        .select('*')
         .order('session_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (sessionsError) throw sessionsError;
 
-      // Fetch all stall confirmations
-      const { data: stallsData, error: stallsError } = await supabase
-        .from('stall_confirmations')
-        .select('*');
+      const sessions = sessionsData || [];
+      if (sessions.length === 0) {
+        setSessions([]);
+        setLoading(false);
+        return;
+      }
 
-      if (stallsError) throw stallsError;
+      // Get unique user and market IDs
+      const userIds = [...new Set(sessions.map((s: any) => s.user_id).filter(Boolean))];
+      const marketIds = [...new Set(sessions.map((s: any) => s.market_id).filter(Boolean))];
 
-      // Match stalls to sessions
-      const sessionsWithStalls = (sessionsData || []).map((session: any) => ({
+      // Fetch employees, markets, stall confirmations, and media in parallel
+      const [
+        { data: employees },
+        { data: markets },
+        { data: stallsData },
+        { data: mediaData }
+      ] = await Promise.all([
+        supabase.from('employees').select('id, full_name, phone').in('id', userIds),
+        supabase.from('markets').select('id, name, location').in('id', marketIds),
+        supabase.from('stall_confirmations').select('*'),
+        supabase.from('media').select('*')
+      ]);
+
+      const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e]));
+      const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m]));
+
+      // Match stalls and media to sessions
+      const sessionsWithData = sessions.map((session: any) => ({
         ...session,
+        employees: empById[session.user_id] || null,
+        markets: mktById[session.market_id] || null,
         stalls: (stallsData || []).filter(
           (stall: any) =>
             stall.created_by === session.user_id &&
             stall.market_id === session.market_id &&
             stall.market_date === (session.market_date || session.session_date)
         ),
+        media: (mediaData || []).filter(
+          (media: any) =>
+            media.user_id === session.user_id &&
+            media.market_id === session.market_id &&
+            media.market_date === (session.market_date || session.session_date)
+        )
       }));
 
-      setSessions(sessionsWithStalls as any);
+      setSessions(sessionsWithData as any);
     } catch (error: any) {
       toast.error('Failed to load sessions');
       console.error(error);
