@@ -6,10 +6,6 @@ const menuItems = [{
   url: '/admin',
   icon: LayoutDashboard
 }, {
-  title: 'Live Market',
-  url: '/admin/live-market',
-  icon: MonitorPlay
-}, {
   title: 'Live Markets',
   url: '/admin/live-markets',
   icon: MonitorPlay
