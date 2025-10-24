@@ -114,7 +114,7 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground">Real-time operations monitoring</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((stat) => (
           <Card 
             key={stat.title} 
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
       
       <TaskProgressWidget />
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
         <CollectionsWidget />
         <StallConfirmationsWidget />
       </div>

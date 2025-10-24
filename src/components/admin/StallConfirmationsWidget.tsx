@@ -210,18 +210,18 @@ export default function StallConfirmationsWidget() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
             <CardTitle>Real-time Stall Confirmations</CardTitle>
             <CardDescription>Live stall entry tracking</CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={exportToCSV}>
+          <Button variant="outline" size="sm" onClick={exportToCSV} className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
         </div>
-        <div className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-4 space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Market</label>
               <Select value={selectedMarket} onValueChange={setSelectedMarket}>
@@ -311,30 +311,32 @@ export default function StallConfirmationsWidget() {
             </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="p-2 text-left">Farmer</th>
-                    <th className="p-2 text-left">Stall</th>
-                    <th className="p-2 text-left">No</th>
-                    <th className="p-2 text-left">Market</th>
-                    <th className="p-2 text-left">Date</th>
-                    <th className="p-2 text-left">By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredConfirmations.map((item) => (
-                    <tr key={item.id} className="border-t hover:bg-accent/50">
-                      <td className="p-2">{item.farmer_name}</td>
-                      <td className="p-2">{item.stall_name}</td>
-                      <td className="p-2">{item.stall_no}</td>
-                      <td className="p-2">{item.market_name}</td>
-                      <td className="p-2">{new Date(item.market_date).toLocaleDateString('en-IN')}</td>
-                      <td className="p-2">{item.entered_by}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="p-2 text-left whitespace-nowrap">Farmer</th>
+                      <th className="p-2 text-left whitespace-nowrap">Stall</th>
+                      <th className="p-2 text-left whitespace-nowrap">No</th>
+                      <th className="p-2 text-left whitespace-nowrap">Market</th>
+                      <th className="p-2 text-left whitespace-nowrap">Date</th>
+                      <th className="p-2 text-left whitespace-nowrap">By</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredConfirmations.map((item) => (
+                      <tr key={item.id} className="border-t hover:bg-accent/50">
+                        <td className="p-2 whitespace-nowrap">{item.farmer_name}</td>
+                        <td className="p-2 whitespace-nowrap">{item.stall_name}</td>
+                        <td className="p-2 whitespace-nowrap">{item.stall_no}</td>
+                        <td className="p-2 whitespace-nowrap">{item.market_name}</td>
+                        <td className="p-2 whitespace-nowrap">{new Date(item.market_date).toLocaleDateString('en-IN')}</td>
+                        <td className="p-2 whitespace-nowrap">{item.entered_by}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

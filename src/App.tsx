@@ -13,6 +13,7 @@ import Punch from "./pages/Punch";
 import Stalls from "./pages/Stalls";
 import MediaUpload from "./pages/MediaUpload";
 import Finalize from "./pages/Finalize";
+import Install from "./pages/Install";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AllSessions from "./pages/admin/AllSessions";
 import Users from "./pages/admin/Users";
@@ -33,6 +34,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/install" element={<Install />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/market-selection" element={<ProtectedRoute><MarketSelection /></ProtectedRoute>} />
             <Route path="/punch" element={<ProtectedRoute><Punch /></ProtectedRoute>} />
