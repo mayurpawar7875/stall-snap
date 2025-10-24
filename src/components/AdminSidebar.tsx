@@ -33,7 +33,7 @@ export function AdminSidebar() {
       <SidebarContent>
         <SidebarGroup>
           {/* ensure group label is also visible */}
-          <SidebarGroupLabel className="text-foreground">Admin Panel</SidebarGroupLabel>
+          <SidebarGroupLabel className="ml-1 !text-foreground">Admin Panel</SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu>
