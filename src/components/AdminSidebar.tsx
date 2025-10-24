@@ -8,7 +8,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { LayoutDashboard, Users, FileText, Settings, MonitorPlay } from "lucide-react";
 
@@ -21,9 +20,6 @@ const menuItems = [
 ];
 
 export function AdminSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     [
       "flex w-full items-center gap-2 rounded-md px-2 py-2 transition",
@@ -31,10 +27,11 @@ export function AdminSidebar() {
     ].join(" ");
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
+    // Fixed width, NO collapsible behavior -> labels always visible
+    <Sidebar className="w-64">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>Admin Panel</SidebarGroupLabel>
+          <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu>
@@ -42,9 +39,8 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="flex items-center gap-2">
                     <NavLink to={item.url} end className={linkClass}>
-                      {/* Ensure the icon has an explicit text color so it’s visible in all themes */}
                       <item.icon className="h-4 w-4 flex-shrink-0 text-foreground" />
-                      {!collapsed && <span className="ml-1">{item.title}</span>}
+                      <span className="ml-1">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
