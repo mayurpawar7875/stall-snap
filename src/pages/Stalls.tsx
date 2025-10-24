@@ -32,34 +32,21 @@ export default function Stalls() {
   });
 
   useEffect(() => {
-    fetchSession();
+    fetchData();
   }, [user]);
 
-  const fetchSession = async () => {
+  const fetchData = async () => {
     if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
-
-      if (sessionError) throw sessionError;
-      if (!sessionData) {
-        toast.error('No session found for today');
-        navigate('/dashboard');
-        return;
-      }
-
-      setSession(sessionData);
-
+      
+      // Fetch stall confirmations for today
       const { data: stallsData, error: stallsError } = await supabase
-        .from('stalls')
+        .from('stall_confirmations')
         .select('*')
-        .eq('session_id', sessionData.id)
+        .eq('created_by', user.id)
+        .eq('market_date', today)
         .order('created_at', { ascending: true });
 
       if (stallsError) throw stallsError;
@@ -80,85 +67,58 @@ export default function Stalls() {
       return;
     }
 
+    if (!user) return;
+
     try {
-      const now = new Date().toISOString();
+      // Get market info from dashboard state
+      const dashboardState = JSON.parse(localStorage.getItem('dashboardState') || '{}');
+      const marketId = dashboardState.selectedMarketId;
       
+      if (!marketId) {
+        toast.error('Please select a market from the dashboard first');
+        navigate('/dashboard');
+        return;
+      }
+
       if (editingStall) {
+        // Update existing stall confirmation
         const { error } = await supabase
-          .from('stalls')
+          .from('stall_confirmations')
           .update(formData)
           .eq('id', editingStall.id);
 
         if (error) throw error;
         
-        // Create task event for update
-        const { data: eventData, error: eventError } = await supabase
-          .from('task_events')
-          .insert({
-            session_id: session.id,
-            task_type: 'stall_confirm',
-            payload: { action: 'update', stall: formData },
-            created_at: now,
-          })
-          .select()
-          .single();
-
-        if (eventError) throw eventError;
-
-        // Update task status
-        await supabase
-          .from('task_status')
-          .upsert({
-            session_id: session.id,
-            task_type: 'stall_confirm',
-            status: 'submitted',
-            latest_event_id: eventData.id,
-            updated_at: now,
-          });
-        
-        toast.success('Stall updated successfully!');
+        const istTime = new Date().toLocaleTimeString('en-IN', { 
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        toast.success(`Updated at ${istTime} IST`);
       } else {
+        // Insert new stall confirmation - trigger will handle session and metadata
         const { error } = await supabase
-          .from('stalls')
+          .from('stall_confirmations')
           .insert({
             ...formData,
-            session_id: session.id,
-          });
+            created_by: user.id,
+            market_id: marketId,
+          } as any);
 
         if (error) throw error;
         
-        // Create task event for new stall
-        const { data: eventData, error: eventError } = await supabase
-          .from('task_events')
-          .insert({
-            session_id: session.id,
-            task_type: 'stall_confirm',
-            payload: { action: 'add', stall: formData },
-            created_at: now,
-          })
-          .select()
-          .single();
-
-        if (eventError) throw eventError;
-
-        // Update task status
-        await supabase
-          .from('task_status')
-          .upsert({
-            session_id: session.id,
-            task_type: 'stall_confirm',
-            status: 'submitted',
-            latest_event_id: eventData.id,
-            updated_at: now,
-          });
-        
-        toast.success('Stall added successfully!');
+        const istTime = new Date().toLocaleTimeString('en-IN', { 
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        toast.success(`Saved at ${istTime} IST`);
       }
 
       setDialogOpen(false);
       setEditingStall(null);
       setFormData({ farmer_name: '', stall_name: '', stall_no: '' });
-      fetchSession();
+      fetchData();
     } catch (error: any) {
       toast.error(editingStall ? 'Failed to update stall' : 'Failed to add stall');
       console.error(error);
@@ -179,11 +139,11 @@ export default function Stalls() {
     if (!confirm('Are you sure you want to delete this stall?')) return;
 
     try {
-      const { error } = await supabase.from('stalls').delete().eq('id', id);
+      const { error } = await supabase.from('stall_confirmations').delete().eq('id', id);
 
       if (error) throw error;
       toast.success('Stall deleted successfully!');
-      fetchSession();
+      fetchData();
     } catch (error: any) {
       toast.error('Failed to delete stall');
       console.error(error);

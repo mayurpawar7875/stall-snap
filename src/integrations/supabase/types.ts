@@ -497,6 +497,10 @@ export type Database = {
     }
     Functions: {
       backfill_media_metadata: { Args: never; Returns: undefined }
+      get_or_create_session: {
+        Args: { p_date: string; p_market: string; p_user: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]

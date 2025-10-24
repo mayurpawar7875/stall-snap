@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ArrowLeft, Upload, Camera, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Upload, Camera, MapPin } from 'lucide-react';
 
 interface MediaFile {
   id: string;
@@ -20,52 +20,29 @@ interface MediaFile {
   is_late: boolean;
 }
 
-interface TimeWindow {
-  start: string;
-  end: string;
-  label: string;
-}
-
 export default function MediaUpload() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [session, setSession] = useState<any>(null);
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    fetchSession();
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    fetchData();
   }, [user]);
 
-  const fetchSession = async () => {
+  const fetchData = async () => {
     if (!user) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
-
-      if (sessionError) throw sessionError;
-      if (!sessionData) {
-        toast.error('No session found for today');
-        navigate('/dashboard');
-        return;
-      }
-
-      setSession(sessionData);
-
+      
+      // Fetch media for today
       const { data: mediaData, error: mediaError } = await supabase
         .from('media')
         .select('*')
-        .eq('session_id', sessionData.id)
+        .eq('user_id', user.id)
+        .eq('market_date', today)
         .order('created_at', { ascending: false });
 
       if (mediaError) throw mediaError;
@@ -78,58 +55,27 @@ export default function MediaUpload() {
     }
   };
 
-  const getISTTime = () => {
-    const now = new Date();
-    const istOffset = 5.5 * 60; // IST is UTC+5:30 in minutes
-    const localOffset = now.getTimezoneOffset(); // Local offset from UTC in minutes (negative for ahead of UTC)
-    return new Date(now.getTime() + (istOffset + localOffset) * 60 * 1000);
-  };
-
-  const isTimeInWindow = (windowStart: string, windowEnd: string) => {
-    const istTime = getISTTime();
-    
-    const hours = istTime.getHours();
-    const minutes = istTime.getMinutes();
-    const currentMinutes = hours * 60 + minutes;
-
-    const [startH, startM] = windowStart.split(':').map(Number);
-    const [endH, endM] = windowEnd.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
-
-    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  };
-
-  const isLateUpload = (windowStart: string, windowEnd: string) => {
-    return !isTimeInWindow(windowStart, windowEnd);
-  };
-
-  const timeWindows: Record<MediaFile['media_type'], TimeWindow> = {
-    outside_rates: { start: '14:00', end: '14:15', label: '2:00 PM - 2:15 PM IST' },
-    selfie_gps: { start: '14:15', end: '14:20', label: '2:15 PM - 2:20 PM IST' },
-    rate_board: { start: '15:45', end: '16:00', label: '3:45 PM - 4:00 PM IST' },
-    market_video: { start: '16:00', end: '16:15', label: '4:00 PM - 4:15 PM IST' },
-    cleaning_video: { start: '21:15', end: '21:30', label: '9:15 PM - 9:30 PM IST' },
-  };
-
-  const canUploadOutsideRates = isTimeInWindow('14:00', '14:15');
-  const canUploadSelfie = isTimeInWindow('14:15', '14:20');
-  const canUploadRateBoard = isTimeInWindow('15:45', '16:00');
-  const canUploadMarketVideo = isTimeInWindow('16:00', '16:15');
-  const canUploadCleaningVideo = isTimeInWindow('21:15', '21:30');
-
   const handleFileUpload = async (
     file: File,
     mediaType: MediaFile['media_type'],
-    isLate: boolean,
     gpsLat?: number,
     gpsLng?: number
   ) => {
-    if (!session) return;
+    if (!user) return;
 
     setUploading(true);
     try {
-      const fileName = `${user!.id}/${Date.now()}-${file.name}`;
+      // Get market info from dashboard state (or default)
+      const dashboardState = JSON.parse(localStorage.getItem('dashboardState') || '{}');
+      const marketId = dashboardState.selectedMarketId;
+      
+      if (!marketId) {
+        toast.error('Please select a market from the dashboard first');
+        navigate('/dashboard');
+        return;
+      }
+
+      const fileName = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('employee-media')
         .upload(fileName, file);
@@ -138,8 +84,10 @@ export default function MediaUpload() {
 
       const { data: urlData } = supabase.storage.from('employee-media').getPublicUrl(fileName);
 
+      // Insert media - trigger will handle session creation and metadata
       const { error: insertError } = await supabase.from('media').insert({
-        session_id: session.id,
+        user_id: user.id,
+        market_id: marketId,
         media_type: mediaType,
         file_url: urlData.publicUrl,
         file_name: file.name,
@@ -147,16 +95,17 @@ export default function MediaUpload() {
         gps_lat: gpsLat || null,
         gps_lng: gpsLng || null,
         captured_at: new Date().toISOString(),
-        is_late: isLate,
-      });
+      } as any);
 
       if (insertError) throw insertError;
 
-      const message = isLate 
-        ? 'Media uploaded successfully (marked as late)' 
-        : 'Media uploaded successfully!';
-      toast.success(message);
-      fetchSession();
+      const istTime = new Date().toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      toast.success(`Saved at ${istTime} IST`);
+      fetchData();
     } catch (error: any) {
       toast.error('Failed to upload media');
       console.error(error);
@@ -168,16 +117,12 @@ export default function MediaUpload() {
   const handleOutsideRatesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const isLate = isLateUpload('14:00', '14:15');
-    await handleFileUpload(file, 'outside_rates', isLate);
+    await handleFileUpload(file, 'outside_rates');
   };
 
   const handleSelfieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const isLate = isLateUpload('14:15', '14:20');
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -185,7 +130,6 @@ export default function MediaUpload() {
           await handleFileUpload(
             file,
             'selfie_gps',
-            isLate,
             position.coords.latitude,
             position.coords.longitude
           );
@@ -203,22 +147,19 @@ export default function MediaUpload() {
   const handleRateBoardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const isLate = isLateUpload('15:45', '16:00');
-    await handleFileUpload(file, 'rate_board', isLate);
+    await handleFileUpload(file, 'rate_board');
   };
 
   const handleMarketVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const isLate = isLateUpload('16:00', '16:15');
-    await handleFileUpload(file, 'market_video', isLate);
+    await handleFileUpload(file, 'market_video');
   };
 
   const handleCleaningVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const isLate = isLateUpload('21:15', '21:30');
-    await handleFileUpload(file, 'cleaning_video', isLate);
+    await handleFileUpload(file, 'cleaning_video');
   };
 
   const outsideRatesMedia = media.filter((m) => m.media_type === 'outside_rates');
@@ -259,13 +200,8 @@ export default function MediaUpload() {
               </div>
               <div className="flex-1">
                 <CardTitle>Outside Market Rates</CardTitle>
-                <CardDescription>Upload allowed between 2:00 PM - 2:15 PM IST</CardDescription>
+                <CardDescription>Suggested: 2:00 PM - 2:15 PM IST</CardDescription>
               </div>
-              {canUploadOutsideRates ? (
-                <CheckCircle className="h-6 w-6 text-success" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-warning" />
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -311,13 +247,8 @@ export default function MediaUpload() {
               </div>
               <div className="flex-1">
                 <CardTitle>Selfie + GPS Location</CardTitle>
-                <CardDescription>Upload allowed between 2:15 PM - 2:20 PM IST</CardDescription>
+                <CardDescription>Suggested: 2:15 PM - 2:20 PM IST</CardDescription>
               </div>
-              {canUploadSelfie ? (
-                <CheckCircle className="h-6 w-6 text-success" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-warning" />
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -373,13 +304,8 @@ export default function MediaUpload() {
               </div>
               <div className="flex-1">
                 <CardTitle>Big Rate Board Photo</CardTitle>
-                <CardDescription>Upload allowed between 3:45 PM - 4:00 PM IST</CardDescription>
+                <CardDescription>Suggested: 3:45 PM - 4:00 PM IST</CardDescription>
               </div>
-              {canUploadRateBoard ? (
-                <CheckCircle className="h-6 w-6 text-success" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-warning" />
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -425,13 +351,8 @@ export default function MediaUpload() {
               </div>
               <div className="flex-1">
                 <CardTitle>Market Video</CardTitle>
-                <CardDescription>Upload allowed between 4:00 PM - 4:15 PM IST</CardDescription>
+                <CardDescription>Suggested: 4:00 PM - 4:15 PM IST</CardDescription>
               </div>
-              {canUploadMarketVideo ? (
-                <CheckCircle className="h-6 w-6 text-success" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-warning" />
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -477,13 +398,8 @@ export default function MediaUpload() {
               </div>
               <div className="flex-1">
                 <CardTitle>Market Space Cleaning Video</CardTitle>
-                <CardDescription>Upload allowed between 9:15 PM - 9:30 PM IST</CardDescription>
+                <CardDescription>Suggested: 9:15 PM - 9:30 PM IST</CardDescription>
               </div>
-              {canUploadCleaningVideo ? (
-                <CheckCircle className="h-6 w-6 text-success" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-warning" />
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -520,22 +436,6 @@ export default function MediaUpload() {
           </CardContent>
         </Card>
 
-        {/* Time Window Info */}
-        <Card className="border-info">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-info mt-0.5" />
-              <div className="flex-1 space-y-1">
-                <p className="font-semibold text-info">
-                  Current Time (IST): {new Date(currentTime.getTime() + (5.5 * 60 + currentTime.getTimezoneOffset()) * 60 * 1000).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  You can upload files anytime. Uploads outside the specified time windows will be marked as "Late Upload".
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </main>
     </div>
   );
