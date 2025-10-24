@@ -107,11 +107,9 @@ export default function Dashboard() {
     try {
       if (type === 'stalls') {
         const { data, error } = await supabase
-          .from('stall_confirmations')
+          .from('stalls')
           .select('*')
-          .eq('market_id', todaySession.market_id)
-          .eq('market_date', todaySession.market_date || todaySession.session_date)
-          .eq('created_by', user?.id)
+          .eq('session_id', todaySession.id)
           .order('created_at', { ascending: false });
         
         if (error) throw error;
