@@ -4,8 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Download, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface StallConfirmation {
   id: string;
@@ -24,8 +28,10 @@ export default function StallConfirmationsWidget() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMarket, setSelectedMarket] = useState<string>('all');
-  const [selectedDate, setSelectedDate] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedFarmer, setSelectedFarmer] = useState<string>('all');
   const [markets, setMarkets] = useState<any[]>([]);
+  const [farmers, setFarmers] = useState<string[]>([]);
 
   useEffect(() => {
     fetchMarkets();
@@ -76,16 +82,22 @@ export default function StallConfirmationsWidget() {
     }
 
     // Apply date filter
-    if (selectedDate && selectedDate !== 'all') {
+    if (selectedDate) {
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
       filtered = filtered.filter(c => {
         if (!c.market_date) return false;
-        const confirmDate = new Date(c.market_date).toISOString().split('T')[0];
-        return confirmDate === selectedDate;
+        const confirmDateStr = format(new Date(c.market_date), 'yyyy-MM-dd');
+        return confirmDateStr === selectedDateStr;
       });
     }
 
+    // Apply farmer filter
+    if (selectedFarmer && selectedFarmer !== 'all') {
+      filtered = filtered.filter(c => c.farmer_name === selectedFarmer);
+    }
+
     setFilteredConfirmations(filtered);
-  }, [searchTerm, confirmations, selectedMarket, selectedDate]);
+  }, [searchTerm, confirmations, selectedMarket, selectedDate, selectedFarmer]);
 
   const fetchConfirmations = async () => {
     try {
@@ -152,6 +164,10 @@ export default function StallConfirmationsWidget() {
 
       setConfirmations(formatted);
       setFilteredConfirmations(formatted);
+      
+      // Extract unique farmer names
+      const uniqueFarmers = [...new Set(formatted.map(f => f.farmer_name))].sort();
+      setFarmers(uniqueFarmers);
     } catch (error) {
       console.error('Error fetching confirmations:', error);
     } finally {
@@ -205,7 +221,7 @@ export default function StallConfirmationsWidget() {
           </Button>
         </div>
         <div className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Market</label>
               <Select value={selectedMarket} onValueChange={setSelectedMarket}>
@@ -224,25 +240,67 @@ export default function StallConfirmationsWidget() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Date</label>
-              <Select value={selectedDate} onValueChange={setSelectedDate}>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Farmer</label>
+              <Select value={selectedFarmer} onValueChange={setSelectedFarmer}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All dates" />
+                  <SelectValue placeholder="All farmers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Dates</SelectItem>
-                  <SelectItem value={new Date().toISOString().split('T')[0]}>Today</SelectItem>
-                  <SelectItem value={new Date(Date.now() - 86400000).toISOString().split('T')[0]}>Yesterday</SelectItem>
-                  <SelectItem value={new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]}>2 Days Ago</SelectItem>
-                  <SelectItem value={new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]}>Last Week</SelectItem>
+                  <SelectItem value="all">All Farmers</SelectItem>
+                  {farmers.map((farmer) => (
+                    <SelectItem key={farmer} value={farmer}>
+                      {farmer}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <Input
-            placeholder="Search by farmer, stall, or market..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search by farmer, stall, or market..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            {(selectedMarket !== 'all' || selectedDate || selectedFarmer !== 'all') && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedMarket('all');
+                  setSelectedDate(undefined);
+                  setSelectedFarmer('all');
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
