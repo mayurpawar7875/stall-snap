@@ -40,7 +40,6 @@ export default function RealtimeMediaFeed() {
 
   const fetchRecentUploads = async () => {
     try {
-      // Use direct filtering with new columns
       const { data, error } = await supabase
         .from('media')
         .select(`
@@ -50,24 +49,42 @@ export default function RealtimeMediaFeed() {
           captured_at,
           is_late,
           user_id,
-          market_id,
-          employees!media_user_id_fkey(full_name),
-          markets!media_market_id_fkey(name)
+          market_id
         `)
         .order('captured_at', { ascending: false })
         .limit(20);
 
       if (error) throw error;
 
-      const formattedUploads = data?.map((item: any) => ({
+      const uploads = data || [];
+      if (uploads.length === 0) {
+        setUploads([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique user and market IDs
+      const userIds = [...new Set(uploads.map(u => u.user_id).filter(Boolean))];
+      const marketIds = [...new Set(uploads.map(u => u.market_id).filter(Boolean))];
+
+      // Fetch employees and markets
+      const [{ data: employees }, { data: markets }] = await Promise.all([
+        supabase.from('employees').select('id, full_name').in('id', userIds),
+        supabase.from('markets').select('id, name').in('id', marketIds),
+      ]);
+
+      const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e.full_name]));
+      const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m.name]));
+
+      const formattedUploads = uploads.map((item: any) => ({
         id: item.id,
-        employee_name: item.employees?.full_name || 'Unknown',
-        market_name: item.markets?.name || 'Unknown',
+        employee_name: empById[item.user_id] || 'Unknown',
+        market_name: mktById[item.market_id] || 'Unknown',
         file_type: item.media_type.replace(/_/g, ' ').toUpperCase(),
         uploaded_at: item.captured_at,
         is_late: item.is_late,
         file_url: item.file_url,
-      })) || [];
+      }));
 
       setUploads(formattedUploads);
     } catch (error) {

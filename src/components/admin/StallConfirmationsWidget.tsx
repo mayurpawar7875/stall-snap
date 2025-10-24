@@ -65,24 +65,45 @@ export default function StallConfirmationsWidget() {
           stall_no,
           market_date,
           created_at,
-          markets (name),
-          employees!stall_confirmations_created_by_fkey (full_name)
+          market_id,
+          created_by
         `)
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
 
-      const formatted = data?.map((item: any) => ({
+      const confirmations = data || [];
+      if (confirmations.length === 0) {
+        setConfirmations([]);
+        setFilteredConfirmations([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique user and market IDs
+      const userIds = [...new Set(confirmations.map(c => c.created_by).filter(Boolean))];
+      const marketIds = [...new Set(confirmations.map(c => c.market_id).filter(Boolean))];
+
+      // Fetch employees and markets
+      const [{ data: employees }, { data: markets }] = await Promise.all([
+        supabase.from('employees').select('id, full_name').in('id', userIds),
+        supabase.from('markets').select('id, name').in('id', marketIds),
+      ]);
+
+      const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e.full_name]));
+      const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m.name]));
+
+      const formatted = confirmations.map((item: any) => ({
         id: item.id,
         farmer_name: item.farmer_name,
         stall_name: item.stall_name,
         stall_no: item.stall_no,
-        market_name: item.markets?.name || 'Unknown',
+        market_name: mktById[item.market_id] || 'Unknown',
         market_date: item.market_date,
         created_at: item.created_at,
-        entered_by: item.employees?.full_name || 'Unknown',
-      })) || [];
+        entered_by: empById[item.created_by] || 'Unknown',
+      }));
 
       setConfirmations(formatted);
       setFilteredConfirmations(formatted);

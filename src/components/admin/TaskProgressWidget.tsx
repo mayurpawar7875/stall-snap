@@ -64,8 +64,6 @@ export default function TaskProgressWidget() {
           id,
           user_id,
           market_id,
-          profiles!inner (full_name),
-          markets!inner (name),
           task_status:task_status(task_type, status, updated_at)
         `)
         .eq('session_date', selectedDate)
@@ -73,11 +71,31 @@ export default function TaskProgressWidget() {
 
       if (error) throw error;
 
+      const sessions = data || [];
+      if (sessions.length === 0) {
+        setSessions([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique user and market IDs
+      const userIds = [...new Set(sessions.map(s => s.user_id).filter(Boolean))];
+      const marketIds = [...new Set(sessions.map(s => s.market_id).filter(Boolean))];
+
+      // Fetch employees and markets
+      const [{ data: employees }, { data: markets }] = await Promise.all([
+        supabase.from('employees').select('id, full_name').in('id', userIds),
+        supabase.from('markets').select('id, name').in('id', marketIds),
+      ]);
+
+      const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e.full_name]));
+      const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m.name]));
+
       // Transform the data to match our interface
-      const transformedData = (data || []).map((session: any) => ({
+      const transformedData = sessions.map((session: any) => ({
         id: session.id,
-        employee_name: session.profiles?.full_name || 'Unknown',
-        market_name: session.markets?.name || 'Unknown',
+        employee_name: empById[session.user_id] || 'Unknown',
+        market_name: mktById[session.market_id] || 'Unknown',
         task_statuses: session.task_status || [],
       }));
 

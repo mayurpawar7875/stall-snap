@@ -60,28 +60,54 @@ export default function EmployeeTimeline() {
     try {
       const { data, error } = await supabase
         .from('task_events')
-        .select(`
-          *,
-          sessions!inner (
-            user_id,
-            market_id,
-            profiles!inner (full_name),
-            markets!inner (name)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
 
+      const events = data || [];
+      if (events.length === 0) {
+        setEvents([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique session IDs
+      const sessionIds = [...new Set(events.map(e => e.session_id).filter(Boolean))];
+
+      // Fetch sessions
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id, user_id, market_id')
+        .in('id', sessionIds);
+
+      const sessionsById = Object.fromEntries((sessions || []).map((s: any) => [s.id, s]));
+
+      // Get unique user and market IDs
+      const userIds = [...new Set((sessions || []).map((s: any) => s.user_id).filter(Boolean))];
+      const marketIds = [...new Set((sessions || []).map((s: any) => s.market_id).filter(Boolean))];
+
+      // Fetch employees and markets
+      const [{ data: employees }, { data: markets }] = await Promise.all([
+        supabase.from('employees').select('id, full_name').in('id', userIds),
+        supabase.from('markets').select('id, name').in('id', marketIds),
+      ]);
+
+      const empById = Object.fromEntries((employees || []).map((e: any) => [e.id, e.full_name]));
+      const mktById = Object.fromEntries((markets || []).map((m: any) => [m.id, m.name]));
+
       // Transform the data to match our interface
-      const transformedData = (data || []).map((event: any) => ({
-        ...event,
-        session_info: {
-          employee_name: event.sessions?.profiles?.full_name || 'Unknown',
-          market_name: event.sessions?.markets?.name || 'Unknown',
-        },
-      }));
+      const transformedData = events.map((event: any) => {
+        const session = sessionsById[event.session_id];
+        return {
+          ...event,
+          session_info: {
+            employee_name: session ? empById[session.user_id] || 'Unknown' : 'Unknown',
+            market_name: session ? mktById[session.market_id] || 'Unknown' : 'Unknown',
+          },
+        };
+      });
 
       setEvents(transformedData);
     } catch (error) {
