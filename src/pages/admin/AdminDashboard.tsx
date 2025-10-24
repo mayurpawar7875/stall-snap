@@ -4,6 +4,10 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, FileText, CheckCircle, Clock } from 'lucide-react';
+import LiveMarketsWidget from '@/components/admin/LiveMarketsWidget';
+import RealtimeMediaFeed from '@/components/admin/RealtimeMediaFeed';
+import CollectionsWidget from '@/components/admin/CollectionsWidget';
+import StallConfirmationsWidget from '@/components/admin/StallConfirmationsWidget';
 
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
@@ -17,12 +21,21 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect non-admins to employee dashboard
     if (!isAdmin) {
       navigate('/dashboard');
       return;
     }
     fetchStats();
+
+    const channel = supabase
+      .channel('dashboard-stats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, fetchStats)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdmin, navigate]);
 
   const fetchStats = async () => {
@@ -30,7 +43,7 @@ export default function AdminDashboard() {
       const today = new Date().toISOString().split('T')[0];
 
       const [usersRes, sessionsRes, todaySessionsRes, finalizedRes] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('sessions').select('id', { count: 'exact', head: true }),
         supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('session_date', today),
         supabase
@@ -55,28 +68,28 @@ export default function AdminDashboard() {
 
   const statCards = [
     {
-      title: 'Total Users',
+      title: 'Active Employees',
       value: stats.totalUsers,
       icon: Users,
-      description: 'Registered employees',
+      description: 'Total active users',
     },
     {
       title: 'Total Sessions',
       value: stats.totalSessions,
       icon: FileText,
-      description: 'All-time reporting sessions',
+      description: 'All-time sessions',
     },
     {
       title: "Today's Sessions",
       value: stats.todaySessions,
       icon: Clock,
-      description: 'Active sessions today',
+      description: 'Active today',
     },
     {
       title: 'Finalized Today',
       value: stats.finalizedToday,
       icon: CheckCircle,
-      description: 'Completed reports today',
+      description: 'Completed reports',
     },
   ];
 
@@ -92,7 +105,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold">Dashboard Overview</h2>
-        <p className="text-muted-foreground">Key metrics and statistics</p>
+        <p className="text-muted-foreground">Real-time operations monitoring</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -110,17 +123,14 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common administrative tasks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Navigate to "All Sessions" to view detailed reports, filter data, and export records.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <LiveMarketsWidget />
+        <RealtimeMediaFeed />
+      </div>
+
+      <CollectionsWidget />
+      
+      <StallConfirmationsWidget />
     </div>
   );
 }

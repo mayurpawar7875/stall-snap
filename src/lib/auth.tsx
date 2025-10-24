@@ -55,11 +55,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
+    
+    if (error) return { error };
+    
+    // Check if employee status is active
+    if (data.user) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileError || profile?.status !== 'active') {
+        await supabase.auth.signOut();
+        return { error: { message: 'Account is inactive. Please contact administrator.' } };
+      }
+    }
+    
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {

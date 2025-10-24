@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      collections: {
+        Row: {
+          amount: number
+          collected_by: string
+          created_at: string
+          id: string
+          market_date: string
+          market_id: string
+          mode: string
+        }
+        Insert: {
+          amount: number
+          collected_by: string
+          created_at?: string
+          id?: string
+          market_date: string
+          market_id: string
+          mode: string
+        }
+        Update: {
+          amount?: number
+          collected_by?: string
+          created_at?: string
+          id?: string
+          market_date?: string
+          market_id?: string
+          mode?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           comment: string
@@ -48,27 +86,38 @@ export type Database = {
       }
       markets: {
         Row: {
+          city: string | null
           created_at: string
           id: string
+          is_active: boolean
           location: string
           name: string
+          schedule_json: Json | null
         }
         Insert: {
+          city?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           location: string
           name: string
+          schedule_json?: Json | null
         }
         Update: {
+          city?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           location?: string
           name?: string
+          schedule_json?: Json | null
         }
         Relationships: []
       }
       media: {
         Row: {
+          allowed_end: string
+          allowed_start: string
           captured_at: string
           content_type: string
           created_at: string
@@ -82,6 +131,8 @@ export type Database = {
           session_id: string
         }
         Insert: {
+          allowed_end?: string
+          allowed_start?: string
           captured_at?: string
           content_type: string
           created_at?: string
@@ -95,6 +146,8 @@ export type Database = {
           session_id: string
         }
         Update: {
+          allowed_end?: string
+          allowed_start?: string
           captured_at?: string
           content_type?: string
           created_at?: string
@@ -123,6 +176,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -130,6 +184,7 @@ export type Database = {
           full_name: string
           id: string
           phone?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -137,6 +192,7 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -181,6 +237,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sessions_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stall_confirmations: {
+        Row: {
+          created_at: string
+          created_by: string
+          farmer_name: string
+          id: string
+          market_date: string
+          market_id: string
+          stall_name: string
+          stall_no: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          farmer_name: string
+          id?: string
+          market_date: string
+          market_id: string
+          stall_name: string
+          stall_no: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          farmer_name?: string
+          id?: string
+          market_date?: string
+          market_id?: string
+          stall_name?: string
+          stall_no?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stall_confirmations_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
             referencedRelation: "markets"
